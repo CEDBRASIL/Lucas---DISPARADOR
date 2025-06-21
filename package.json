@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@wppconnect/server": "^2.8.6"
+    "@wppconnect/server": "^2.8.6",
+    "@babel/runtime": "^7.27.0",
+    "prom-client": "^14.2.0"
   }
 }
