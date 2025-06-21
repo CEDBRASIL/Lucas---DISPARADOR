@@ -773,9 +773,9 @@
         // --- Cache (localStorage) Initialization ---
         const APP_PREFIX = 'EPH_DISPAROS_';
         const BASE_URLS = {
-            '1': 'https://whatsapp-api-uylw.onrender.com',
-            '2': 'https://wha-api-lucas-2.onrender.com',
-            '3': 'https://wha-api-lucas-3.onrender.com'
+            '1': '/api1',
+            '2': '/api2',
+            '3': '/api3'
         };
         let connections = JSON.parse(localStorage.getItem(APP_PREFIX + 'connections')) || {
             '1': { connected: false, name: '' }, '2': { connected: false, name: '' }, '3': { connected: false, name: '' }
