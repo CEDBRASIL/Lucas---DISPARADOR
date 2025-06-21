@@ -257,10 +257,27 @@ app.get('/qr/:id?', (req, res) => {
   const id = req.params.id || '1';
   const qr = sessions[id].qr;
   if (qr) {
-    res.send(`<html><body><img src="${qr}" alt="QR Code" /></body></html>`);
+    res.json({ qr });
   } else {
     res.status(404).send('QR Code não disponível.');
   }
+});
+
+app.post('/disconnect/:id?', async (req, res) => {
+  const id = req.params.id || '1';
+  const session = sessions[id];
+  if (!session.sock) return res.status(400).send('Bot não conectado');
+  try {
+    await session.sock.logout();
+  } catch (err) {
+    console.error('Erro ao deslogar:', err);
+  }
+  session.sock.end();
+  session.sock = null;
+  session.qr = null;
+  const dir = path.join(__dirname, `auth_info_baileys_${id}`);
+  if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+  res.send('Desconectado');
 });
 
 app.get('/send/:id?', async (req, res) => {

@@ -199,6 +199,10 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(159, 122, 234, 0.3);
         }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
         
         .btn-sm {
             padding: 0.25rem 0.5rem;
@@ -834,32 +838,57 @@
             });
         };
 
+        const pollQR = (instanceId) => {
+            const card = document.querySelector(`.connection-card[data-instance='${instanceId}']`);
+            if (!card) return;
+            const statusEl = card.querySelector('.status');
+            const qrPlaceholder = card.querySelector('.qr-placeholder');
+            fetch(`/qr/${instanceId}`)
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data && data.qr) {
+                        qrPlaceholder.innerHTML = `<img src="${data.qr}" alt="QR Code">`;
+                        statusEl.textContent = 'Aguardando leitura...';
+                    }
+                });
+        };
+
+        const updateStatuses = () => {
+            fetch('/status').then(r => r.json()).then(data => {
+                Object.keys(connections).forEach(id => {
+                    connections[id].connected = !!data[id];
+                    renderConnectionCard(id);
+                });
+                saveState();
+            });
+        };
+
         const handleConnect = (instanceId) => {
             if (connections[instanceId].connected) {
-                connections[instanceId].connected = false;
-                saveState();
-                renderConnectionCard(instanceId);
+                fetch(`/disconnect/${instanceId}`, { method: 'POST' })
+                    .finally(updateStatuses);
             } else {
                 const card = document.querySelector(`.connection-card[data-instance='${instanceId}']`);
                 const statusEl = card.querySelector('.status');
                 const qrPlaceholder = card.querySelector('.qr-placeholder');
-                
+
                 statusEl.className = 'status loading';
                 statusEl.textContent = 'Gerando QR Code...';
                 qrPlaceholder.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="font-size: 50px; color: var(--primary-color);"></i>`;
 
-                setTimeout(() => {
-                    qrPlaceholder.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=EPH_Disparos_Connect_${Date.now()}" alt="QR Code">`;
-                    statusEl.textContent = 'Aguardando leitura...';
-                }, 2000);
+                fetch(`/connect/${instanceId}`, { method: 'POST' });
+                pollQR(instanceId);
 
-                setTimeout(() => {
-                    if (statusEl.textContent === 'Aguardando leitura...') {
-                        connections[instanceId].connected = true;
-                        saveState();
-                        renderConnectionCard(instanceId);
-                    }
-                }, 7000);
+                const interval = setInterval(() => {
+                    fetch('/status').then(r => r.json()).then(s => {
+                        if (s[instanceId]) {
+                            clearInterval(interval);
+                            updateStatuses();
+                        } else {
+                            pollQR(instanceId);
+                        }
+                    });
+                }, 3000);
             }
         };
 
@@ -912,6 +941,7 @@
         // --- Initial Setup ---
         switchPage('conectar');
         Object.keys(connections).forEach(renderConnectionCard);
+        updateStatuses();
         renderCampaigns();
 
         // --- Event Listeners ---
@@ -1134,9 +1164,11 @@
                 contactsText += `55${Math.floor(10 + Math.random() * 90)}9${Math.floor(10000000 + Math.random() * 90000000)}\n`;
             }
             document.getElementById('contacts').value = contactsText;
-            
+
             closeModal(importModal);
         });
+
+        setInterval(updateStatuses, 10000);
 
     });
     </script>
