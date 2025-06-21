@@ -301,6 +301,14 @@
             object-fit: contain;
         }
 
+        .qr-placeholder iframe {
+            width: 500px;
+            height: 500px;
+            border: 0;
+            transform: scale(0.4);
+            transform-origin: top left;
+        }
+
         .connection-card input {
             width: 100%;
             padding: 0.5rem;
@@ -857,7 +865,7 @@
                 fetch(baseUrl + '/connect', { method: 'POST', mode: 'no-cors' }).catch(() => {});
 
                 setTimeout(() => {
-                    qrPlaceholder.innerHTML = `<iframe src="${baseUrl}/qr" style="width:200px;height:200px;border:0;"></iframe>`;
+                    qrPlaceholder.innerHTML = `<iframe src="${baseUrl}/qr"></iframe>`;
                     statusEl.textContent = 'Aguardando leitura...';
                 }, 1000);
 
