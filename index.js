@@ -95,7 +95,7 @@ app.get('/painel', (_, res) => {
 loadNumbers();
 
 app.get('/', (_, res) => {
-  res.send('Bot rodando');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/status', (_, res) => {
