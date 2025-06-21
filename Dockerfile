@@ -1,14 +1,7 @@
-# Build stage
-FROM golang:1.23 AS build
-WORKDIR /src
-COPY go.mod go.sum ./
-RUN go mod download
-COPY cmd ./cmd
-RUN CGO_ENABLED=0 GOOS=linux go build -o /wapiapp ./cmd/wapiapp
-
-# Runtime stage
-FROM alpine:3.20
-RUN apk add --no-cache ca-certificates
-COPY --from=build /wapiapp /wapiapp
-EXPOSE 8080
-ENTRYPOINT ["/wapiapp"]
+FROM node:20-alpine
+WORKDIR /usr/src/app
+COPY package.json ./
+RUN npm install --omit=dev
+COPY config.js ./node_modules/@wppconnect/server/dist/config.js
+EXPOSE 21465
+CMD ["node", "node_modules/@wppconnect/server/dist/server.js"]

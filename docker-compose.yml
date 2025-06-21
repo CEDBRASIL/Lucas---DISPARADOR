@@ -1,0 +1,8 @@
+version: "3"
+services:
+  wppconnect:
+    build: .
+    ports:
+      - "21465:21465"
+    volumes:
+      - ./wppconnect_tokens:/usr/src/app/node_modules/@wppconnect/server/wppconnect_tokens

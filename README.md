@@ -1,26 +1,17 @@
-# Wapi.go Docker Example
+# WPPConnect Server Docker
 
-This repository contains a minimal application using the [wapi.go](https://github.com/wapikit/wapi.go) library. The app listens for WhatsApp webhook events and replies with a simple text message.
+This repository provides a minimal Docker setup for running [wppconnect-server](https://github.com/wppconnect-team/wppconnect-server).
 
-## Build
-
-```bash
-docker build -t wapiapp .
-```
-
-## Run
-
-Provide your WhatsApp Cloud API credentials as environment variables:
+## Build image
 
 ```bash
-docker run -p 8080:8080 \
-    -e API_ACCESS_TOKEN=your_token \
-    -e BUSINESS_ACCOUNT_ID=your_account_id \
-    -e WEBHOOK_SECRET=secret \
-    wapiapp
+docker build -t wppconnect-server .
 ```
 
-All three variables are required when running the application. If any of them
-are missing the server will exit with an error message.
+## Run container
 
-The server exposes `/webhook` on port `8080` by default.
+```bash
+docker run -p 21465:21465 wppconnect-server
+```
+
+The configuration file `config.js` is copied into the container at build time. Tokens are stored in the `wppconnect_tokens` directory and mapped into the container when using `docker-compose`.
