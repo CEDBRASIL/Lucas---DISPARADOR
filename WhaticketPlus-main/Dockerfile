@@ -13,11 +13,11 @@ RUN unzip whaticket.zip -d .
 
 # Install backend dependencies
 WORKDIR /usr/src/app/whaticket/backend
-RUN npm install --production
+RUN npm install --production --legacy-peer-deps
 
 # Install frontend dependencies
 WORKDIR /usr/src/app/whaticket/frontend
-RUN npm install --production
+RUN npm install --production --legacy-peer-deps
 
 # Default environment variables
 ENV PORT=9003
