@@ -780,6 +780,7 @@
         let connections = JSON.parse(localStorage.getItem(APP_PREFIX + 'connections')) || {
             '1': { connected: false, name: '' }, '2': { connected: false, name: '' }, '3': { connected: false, name: '' }
         };
+        const statusIntervals = {};
         let campaigns = JSON.parse(localStorage.getItem(APP_PREFIX + 'campaigns')) || [];
 
         // --- UI Elements ---
@@ -815,6 +816,30 @@
             pages.forEach(page => page.classList.remove('active'));
             document.getElementById(targetId).classList.add('active');
             navLinks.forEach(link => link.classList.toggle('active', link.dataset.target === targetId));
+        };
+
+        const startStatusMonitor = (instanceId) => {
+            if (statusIntervals[instanceId]) return;
+            const baseUrl = BASE_URLS[instanceId];
+            statusIntervals[instanceId] = setInterval(() => {
+                fetch(baseUrl + '/status')
+                    .then(r => r.json())
+                    .then(data => {
+                        const isConnected = !!data.conectado;
+                        if (connections[instanceId].connected !== isConnected) {
+                            connections[instanceId].connected = isConnected;
+                            saveState();
+                            renderConnectionCard(instanceId);
+                        }
+                    })
+                    .catch(() => {
+                        if (connections[instanceId].connected) {
+                            connections[instanceId].connected = false;
+                            saveState();
+                            renderConnectionCard(instanceId);
+                        }
+                    });
+            }, 1000);
         };
 
         const renderConnectionCard = (instanceId) => {
@@ -875,18 +900,7 @@
                     statusEl.textContent = 'Aguardando leitura...';
                 }, 1000);
 
-                const checkInterval = setInterval(() => {
-                    fetch(baseUrl + '/status')
-                        .then(r => r.json())
-                        .then(data => {
-                            if (data.conectado) {
-                                clearInterval(checkInterval);
-                                connections[instanceId].connected = true;
-                                saveState();
-                                renderConnectionCard(instanceId);
-                            }
-                        }).catch(() => {});
-                }, 5000);
+                startStatusMonitor(instanceId);
             }
         };
 
@@ -938,7 +952,10 @@
         
         // --- Initial Setup ---
         switchPage('conectar');
-        Object.keys(connections).forEach(renderConnectionCard);
+        Object.keys(connections).forEach(id => {
+            renderConnectionCard(id);
+            startStatusMonitor(id);
+        });
         renderCampaigns();
 
         // --- Event Listeners ---
