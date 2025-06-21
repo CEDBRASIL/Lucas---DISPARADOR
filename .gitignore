@@ -1,5 +1,0 @@
-node_modules
-.session
-.wwebjs_auth
-*.pyc
-__pycache__/
