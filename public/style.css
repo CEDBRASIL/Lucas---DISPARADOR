@@ -15,10 +15,13 @@ nav button {
   background: none;
   border: none;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: background 0.3s, transform 0.1s;
 }
 nav button:hover {
   background: #444;
+}
+nav button:active {
+  transform: scale(0.95);
 }
 nav button.active {
   background: #555;
@@ -38,7 +41,12 @@ textarea {
   margin: 5px;
   padding: 10px 20px;
   cursor: pointer;
-  transition: transform 0.1s;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  transition: background 0.3s, transform 0.1s;
+}
+.actions button:hover {
+  background: #e0e0e0;
 }
 .actions button:active {
   transform: scale(0.95);
