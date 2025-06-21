@@ -12,7 +12,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const SESSION_COUNT = 3;
+const SESSION_COUNT = parseInt(process.env.SESSION_COUNT || '1');
 const sessions = {};
 for (let i = 1; i <= SESSION_COUNT; i++) {
   sessions[i] = { sock: null, qr: null };
@@ -210,13 +210,11 @@ app.post('/upload-numbers', upload.single('file'), (req, res) => {
 app.post('/disparo', async (req, res) => {
   const { mensagem, intervalo } = req.body;
   if (!mensagem) return res.status(400).send('Mensagem é obrigatória');
-  const session = sessions['1'];
-  if (!session.sock) return res.status(500).send('Bot não iniciado');
   const delay = parseInt(intervalo || 1000);
   (async () => {
     for (const num of numbers) {
       try {
-        await session.sock.sendMessage(`${num}@s.whatsapp.net`, { text: mensagem });
+        await sendToApi(num, mensagem);
         await new Promise(r => setTimeout(r, delay));
       } catch (e) {
         console.error('Erro ao enviar para', num, e);
@@ -288,10 +286,8 @@ app.get('/send/:id?', async (req, res) => {
   if (!para || !mensagem) {
     return res.status(400).send('Parâmetros "para" e "mensagem" são obrigatórios.');
   }
-  const session = sessions[id];
-  if (!session.sock) return res.status(500).send('Bot não iniciado');
   try {
-    await session.sock.sendMessage(`${para}@s.whatsapp.net`, { text: mensagem });
+    await sendToApi(para, mensagem);
     res.send('Mensagem enviada');
   } catch (err) {
     console.error('Erro ao enviar mensagem:', err);
@@ -305,8 +301,10 @@ app.head('/secure', (_, res) => {
 });
 
 async function startBot(id = '1') {
+  if (sessions[id].starting) return;
+  sessions[id].starting = true;
   const { state, saveCreds } = await useMultiFileAuthState(`auth_info_baileys_${id}`);
-  const sock = makeWASocket({ auth: state, printQRInTerminal: false });
+  const sock = makeWASocket({ auth: state, printQRInTerminal: false, markOnlineOnConnect: false });
   sessions[id].sock = sock;
 
   sock.ev.on('creds.update', saveCreds);
@@ -317,14 +315,19 @@ async function startBot(id = '1') {
       sessions[id].qr = await qrcode.toDataURL(qr);
     }
     if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error instanceof Boom) &&
-        (lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut);
-      if (shouldReconnect) {
-        console.log(`Tentando reconectar instancia ${id}...`);
-        startBot(id);
+      const code = new Boom(lastDisconnect?.error).output?.statusCode;
+      const loggedOut = code === DisconnectReason.loggedOut || code === DisconnectReason.restartRequired;
+      sessions[id].starting = false;
+      if (loggedOut) {
+        console.log(`Sessao ${id} desconectada, limpando dados...`);
+        const dir = path.join(__dirname, `auth_info_baileys_${id}`);
+        if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
       }
+      console.log(`Tentando reconectar instancia ${id}...`);
+      startBot(id);
     } else if (connection === 'open') {
       sessions[id].qr = null;
+      sessions[id].starting = false;
       console.log(`Instancia ${id} conectada ao WhatsApp`);
     }
   });
