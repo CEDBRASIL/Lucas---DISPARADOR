@@ -781,6 +781,7 @@
             '1': { connected: false, name: '' }, '2': { connected: false, name: '' }, '3': { connected: false, name: '' }
         };
         const statusIntervals = {};
+        const qrIntervals = {};
         let campaigns = JSON.parse(localStorage.getItem(APP_PREFIX + 'campaigns')) || [];
 
         // --- UI Elements ---
@@ -830,6 +831,10 @@
                             connections[instanceId].connected = isConnected;
                             saveState();
                             renderConnectionCard(instanceId);
+                        }
+                        if (isConnected && qrIntervals[instanceId]) {
+                            clearInterval(qrIntervals[instanceId]);
+                            delete qrIntervals[instanceId];
                         }
                     })
                     .catch(() => {
@@ -884,6 +889,10 @@
                 connections[instanceId].connected = false;
                 saveState();
                 renderConnectionCard(instanceId);
+                if (qrIntervals[instanceId]) {
+                    clearInterval(qrIntervals[instanceId]);
+                    delete qrIntervals[instanceId];
+                }
             } else {
                 const card = document.querySelector(`.connection-card[data-instance='${instanceId}']`);
                 const statusEl = card.querySelector('.status');
@@ -898,6 +907,12 @@
                 setTimeout(() => {
                     qrPlaceholder.innerHTML = `<iframe src="${baseUrl}/qr"></iframe>`;
                     statusEl.textContent = 'Aguardando leitura...';
+                    qrIntervals[instanceId] = setInterval(() => {
+                        const iframe = qrPlaceholder.querySelector('iframe');
+                        if (iframe) {
+                            iframe.src = `${baseUrl}/qr?${Date.now()}`;
+                        }
+                    }, 1000);
                 }, 1000);
 
                 startStatusMonitor(instanceId);
