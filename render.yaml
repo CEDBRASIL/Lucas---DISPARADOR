@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: wppconnect-server
-    plan: free
-    branch: main
-    env: docker
-    dockerfilePath: ./Dockerfile
-    healthCheckPath: /api-docs
