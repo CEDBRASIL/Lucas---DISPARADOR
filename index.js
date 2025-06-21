@@ -103,6 +103,7 @@ app.get('/', (_, res) => {
 });
 
 app.get('/status', (_, res) => {
+  res.set('Cache-Control', 'no-store');
   const status = {};
   for (const id of Object.keys(sessions)) {
     status[id] = !!(sessions[id].sock && sessions[id].sock.user);
