@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 
@@ -18,6 +19,15 @@ func getenv(key, def string) string {
 	return def
 }
 
+// mustGetenv reads an environment variable and exits if it is not set.
+func mustGetenv(key string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		log.Fatalf("environment variable %s is required", key)
+	}
+	return val
+}
+
 func main() {
 	portStr := getenv("WEBHOOK_SERVER_PORT", "8080")
 	port, err := strconv.Atoi(portStr)
@@ -26,10 +36,10 @@ func main() {
 	}
 
 	cfg := &wapi.ClientConfig{
-		ApiAccessToken:    getenv("API_ACCESS_TOKEN", ""),
-		BusinessAccountId: getenv("BUSINESS_ACCOUNT_ID", ""),
+		ApiAccessToken:    mustGetenv("API_ACCESS_TOKEN"),
+		BusinessAccountId: mustGetenv("BUSINESS_ACCOUNT_ID"),
 		WebhookPath:       "/webhook",
-		WebhookSecret:     getenv("WEBHOOK_SECRET", ""),
+		WebhookSecret:     mustGetenv("WEBHOOK_SECRET"),
 		WebhookServerPort: port,
 	}
 

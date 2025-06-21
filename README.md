@@ -20,4 +20,7 @@ docker run -p 8080:8080 \
     wapiapp
 ```
 
+All three variables are required when running the application. If any of them
+are missing the server will exit with an error message.
+
 The server exposes `/webhook` on port `8080` by default.
