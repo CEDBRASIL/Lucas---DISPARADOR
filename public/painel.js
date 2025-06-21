@@ -65,12 +65,14 @@ async function loadGrupo(nome) {
   data.participantes.forEach(p => {
     const li = document.createElement('li');
     li.textContent = p.numero + (p.admin ? ' (admin)' : '');
+    li.dataset.numero = p.numero;
     listaNumeros.appendChild(li);
   });
 }
 
 document.getElementById('exportar-csv').addEventListener('click', () => {
-  const rows = Array.from(listaNumeros.children).map(li => [li.textContent]);
+  const rows = Array.from(listaNumeros.children)
+    .map(li => [li.dataset.numero || li.textContent]);
   let csv = rows.map(r => r.join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
@@ -80,7 +82,8 @@ document.getElementById('exportar-csv').addEventListener('click', () => {
 });
 
 document.getElementById('exportar-xlsx').addEventListener('click', () => {
-  const rows = Array.from(listaNumeros.children).map(li => [li.textContent]);
+  const rows = Array.from(listaNumeros.children)
+    .map(li => [li.dataset.numero || li.textContent]);
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb, ws, 'Leads');
