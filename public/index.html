@@ -758,6 +758,12 @@
         </div>
     </div>
 
+    <div id="progressBox" style="display:none;position:fixed;right:20px;bottom:70px;background:#222;color:#fff;padding:.75rem 1rem;border-radius:6px;">
+        <span id="progressText"></span>
+        <i class="fa-solid fa-spinner fa-spin" id="progressSpinner" style="margin-left:8px;"></i>
+    </div>
+    <div id="notification" style="display:none;position:fixed;right:20px;bottom:20px;background:#28a745;color:#fff;padding:.75rem 1rem;border-radius:6px;"></div>
+
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         // --- Cache (localStorage) Initialization ---
@@ -1098,29 +1104,6 @@
             });
         });
 
-        campaignForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const selectedChipId = document.getElementById('chipSelector').value;
-            if (!selectedChipId) { alert('Por favor, conecte um chip primeiro.'); return; }
-
-            const messages = Array.from(variationsContainer.querySelectorAll('.message-input')).map(input => input.value).filter(val => val.trim() !== '');
-            if (messages.length === 0) { alert('Adicione pelo menos uma variação de mensagem.'); return; }
-            
-            const newCampaign = {
-                id: Date.now(),
-                name: document.getElementById('campaignName').value,
-                chipId: selectedChipId,
-                chipName: connections[selectedChipId].name || `Chip ${selectedChipId}`,
-                messages: messages,
-                contactsCount: document.getElementById('contacts').value.split('\n').filter(n => n.trim() !== '').length,
-                status: 'completed', // Simplified for demo
-            };
-            
-            campaigns.push(newCampaign);
-            saveState();
-            renderCampaigns();
-            closeModal(campaignModal);
-        });
         
         // Import Logic
         importContactsBtn.addEventListener('click', () => contactFileInput.click());
@@ -1169,6 +1152,50 @@
         });
 
         setInterval(updateStatuses, 10000);
+
+        const notifyEl = document.getElementById('notification');
+        const progressBox = document.getElementById('progressBox');
+        const progressText = document.getElementById('progressText');
+
+        function showNotification(msg) {
+            notifyEl.textContent = msg;
+            notifyEl.style.display = 'block';
+            setTimeout(() => notifyEl.style.display = 'none', 3000);
+        }
+
+        let progressTimer = null;
+        function pollProgress() {
+            fetch('/api/progress')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.running) {
+                        progressText.textContent = `${data.sent}/${data.total}`;
+                        progressBox.style.display = 'block';
+                    } else {
+                        progressBox.style.display = 'none';
+                        clearInterval(progressTimer);
+                    }
+                });
+        }
+
+        campaignForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const selectedChipId = document.getElementById('chipSelector').value;
+            const messages = Array.from(variationsContainer.querySelectorAll('.message-input')).map(i => i.value).filter(v => v.trim() !== '');
+            const numbers = document.getElementById('contacts').value.split('\n').map(n => n.trim()).filter(Boolean);
+            fetch('/api/disparo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chip: selectedChipId, numbers: numbers, messages: messages })
+            }).then(r => {
+                if (r.ok) {
+                    showNotification('Disparo Iniciado');
+                    progressTimer = setInterval(pollProgress, 3000);
+                } else {
+                    alert('Erro ao iniciar disparo');
+                }
+            });
+        });
 
     });
     </script>

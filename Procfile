@@ -1,1 +1,1 @@
-web: node index.js
+web: sh -c 'node index.js & python server.py'
