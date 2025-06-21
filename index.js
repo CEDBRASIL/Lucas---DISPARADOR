@@ -11,8 +11,12 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-let sock = null;
-let qrCodeBase64 = null;
+
+const SESSION_COUNT = 3;
+const sessions = {};
+for (let i = 1; i <= SESSION_COUNT; i++) {
+  sessions[i] = { sock: null, qr: null };
+}
 const NUMBERS_FILE = 'numbers.json';
 let numbers = [];
 const upload = multer({ dest: 'uploads/' });
@@ -99,14 +103,20 @@ app.get('/', (_, res) => {
 });
 
 app.get('/status', (_, res) => {
-  res.json({ conectado: !!(sock && sock.user) });
+  const status = {};
+  for (const id of Object.keys(sessions)) {
+    status[id] = !!(sessions[id].sock && sessions[id].sock.user);
+  }
+  res.json(status);
 });
 
-app.post('/connect', (_, res) => {
-  if (sock && sock.user) {
+app.post('/connect/:id?', (req, res) => {
+  const id = req.params.id || '1';
+  const session = sessions[id];
+  if (session.sock && session.sock.user) {
     return res.send('Já conectado');
   }
-  startBot();
+  startBot(id);
   res.send('Iniciando conexão');
 });
 
@@ -121,9 +131,10 @@ app.get('/info', (_, res) => {
 
 // Lista todos os grupos que o bot participa
 app.get('/grupos', async (_, res) => {
-  if (!sock) return res.status(500).send('Bot não iniciado');
+  const session = sessions['1'];
+  if (!session.sock) return res.status(500).send('Bot não iniciado');
   try {
-    const grupos = await sock.groupFetchAllParticipating();
+    const grupos = await session.sock.groupFetchAllParticipating();
     const lista = Object.values(grupos).map(g => ({ id: g.id, nome: g.subject }));
     res.json(lista);
   } catch (err) {
@@ -134,13 +145,14 @@ app.get('/grupos', async (_, res) => {
 
 // Mostra os integrantes de um grupo específico
 app.get('/grupos/:nome', async (req, res) => {
-  if (!sock) return res.status(500).send('Bot não iniciado');
+  const session = sessions['1'];
+  if (!session.sock) return res.status(500).send('Bot não iniciado');
   const nome = req.params.nome.toLowerCase();
   try {
-    const grupos = await sock.groupFetchAllParticipating();
+    const grupos = await session.sock.groupFetchAllParticipating();
     const grupo = Object.values(grupos).find(g => g.subject.toLowerCase() === nome);
     if (!grupo) return res.status(404).send('Grupo não encontrado');
-    const meta = await sock.groupMetadata(grupo.id);
+    const meta = await session.sock.groupMetadata(grupo.id);
     const participantes = meta.participants.map(p => ({
       numero: p.id.split('@')[0],
       admin: !!p.admin
@@ -197,12 +209,13 @@ app.post('/upload-numbers', upload.single('file'), (req, res) => {
 app.post('/disparo', async (req, res) => {
   const { mensagem, intervalo } = req.body;
   if (!mensagem) return res.status(400).send('Mensagem é obrigatória');
-  if (!sock) return res.status(500).send('Bot não iniciado');
+  const session = sessions['1'];
+  if (!session.sock) return res.status(500).send('Bot não iniciado');
   const delay = parseInt(intervalo || 1000);
   (async () => {
     for (const num of numbers) {
       try {
-        await sock.sendMessage(`${num}@s.whatsapp.net`, { text: mensagem });
+        await session.sock.sendMessage(`${num}@s.whatsapp.net`, { text: mensagem });
         await new Promise(r => setTimeout(r, delay));
       } catch (e) {
         console.error('Erro ao enviar para', num, e);
@@ -240,23 +253,27 @@ app.post('/continuar', (_, res) => {
   res.send('Disparo retomado');
 });
 
-app.get('/qr', (_, res) => {
-  if (qrCodeBase64) {
-    res.send(`<html><body><img src="${qrCodeBase64}" alt="QR Code" /></body></html>`);
+app.get('/qr/:id?', (req, res) => {
+  const id = req.params.id || '1';
+  const qr = sessions[id].qr;
+  if (qr) {
+    res.send(`<html><body><img src="${qr}" alt="QR Code" /></body></html>`);
   } else {
     res.status(404).send('QR Code não disponível.');
   }
 });
 
-app.get('/send', async (req, res) => {
+app.get('/send/:id?', async (req, res) => {
+  const id = req.params.id || '1';
   const para = req.query.para;
   const mensagem = req.query.mensagem;
   if (!para || !mensagem) {
     return res.status(400).send('Parâmetros "para" e "mensagem" são obrigatórios.');
   }
-  if (!sock) return res.status(500).send('Bot não iniciado');
+  const session = sessions[id];
+  if (!session.sock) return res.status(500).send('Bot não iniciado');
   try {
-    await sock.sendMessage(`${para}@s.whatsapp.net`, { text: mensagem });
+    await session.sock.sendMessage(`${para}@s.whatsapp.net`, { text: mensagem });
     res.send('Mensagem enviada');
   } catch (err) {
     console.error('Erro ao enviar mensagem:', err);
@@ -269,33 +286,36 @@ app.head('/secure', (_, res) => {
   res.status(200).end();
 });
 
-async function startBot() {
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-  sock = makeWASocket({ auth: state, printQRInTerminal: false });
+async function startBot(id = '1') {
+  const { state, saveCreds } = await useMultiFileAuthState(`auth_info_baileys_${id}`);
+  const sock = makeWASocket({ auth: state, printQRInTerminal: false });
+  sessions[id].sock = sock;
 
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
     if (qr) {
-      qrCodeBase64 = await qrcode.toDataURL(qr);
+      sessions[id].qr = await qrcode.toDataURL(qr);
     }
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error instanceof Boom) &&
         (lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut);
       if (shouldReconnect) {
-        console.log('Tentando reconectar...');
-        startBot();
+        console.log(`Tentando reconectar instancia ${id}...`);
+        startBot(id);
       }
     } else if (connection === 'open') {
-      qrCodeBase64 = null;
-      console.log('Conectado ao WhatsApp');
+      sessions[id].qr = null;
+      console.log(`Instancia ${id} conectada ao WhatsApp`);
     }
   });
 
 }
 
-startBot();
+for (let i = 1; i <= SESSION_COUNT; i++) {
+  startBot(String(i));
+}
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
