@@ -10,7 +10,7 @@ app.secret_key = os.getenv('SECRET_KEY', 'secret')
 LOGIN_USER = os.getenv('LOGIN', 'admin')
 LOGIN_PASS = os.getenv('SENHA', '1234')
 
-SEND_BASE = 'http://localhost:3000'
+SEND_BASE = 'https://whatsapptest-stij.onrender.com'
 progress = {'running': False, 'total': 0, 'sent': 0}
 
 
@@ -23,6 +23,14 @@ def normalize(num: str):
     return None
 
 
+def send_single_message(number: str, message: str, chip: str = '1'):
+    requests.get(
+        f"{SEND_BASE}/send/{chip}",
+        params={"para": number, "mensagem": message},
+        timeout=30,
+    )
+
+
 def send_messages(numbers, messages, chip):
     progress.update({'running': True, 'total': len(numbers), 'sent': 0})
     for number in numbers:
@@ -30,7 +38,7 @@ def send_messages(numbers, messages, chip):
             break
         msg = random.choice(messages)
         try:
-            requests.get(f"{SEND_BASE}/send/{chip}", params={'para': number, 'mensagem': msg})
+            send_single_message(number, msg, chip)
         except Exception as e:
             print('Send error', e)
         progress['sent'] += 1
@@ -66,6 +74,20 @@ def index():
 @app.route('/public/<path:path>')
 def static_files(path):
     return send_from_directory('public', path)
+
+
+@app.route('/send/<chip>')
+@login_required
+def api_send(chip):
+    number = request.args.get('para')
+    message = request.args.get('mensagem')
+    if not number or not message:
+        return jsonify({'status': 'error'}), 400
+    try:
+        send_single_message(number, message, chip)
+        return jsonify({'status': 'sent'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
 
 
 @app.route('/api/disparo', methods=['POST'])
