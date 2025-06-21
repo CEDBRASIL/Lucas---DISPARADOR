@@ -758,6 +758,11 @@
     document.addEventListener('DOMContentLoaded', function() {
         // --- Cache (localStorage) Initialization ---
         const APP_PREFIX = 'EPH_DISPAROS_';
+        const BASE_URLS = {
+            '1': 'https://whatsapp-api-uylw.onrender.com',
+            '2': 'https://wha-api-lucas-2.onrender.com',
+            '3': 'https://wha-api-lucas-3.onrender.com'
+        };
         let connections = JSON.parse(localStorage.getItem(APP_PREFIX + 'connections')) || {
             '1': { connected: false, name: '' }, '2': { connected: false, name: '' }, '3': { connected: false, name: '' }
         };
@@ -835,6 +840,7 @@
         };
 
         const handleConnect = (instanceId) => {
+            const baseUrl = BASE_URLS[instanceId];
             if (connections[instanceId].connected) {
                 connections[instanceId].connected = false;
                 saveState();
@@ -843,23 +849,30 @@
                 const card = document.querySelector(`.connection-card[data-instance='${instanceId}']`);
                 const statusEl = card.querySelector('.status');
                 const qrPlaceholder = card.querySelector('.qr-placeholder');
-                
+
                 statusEl.className = 'status loading';
                 statusEl.textContent = 'Gerando QR Code...';
                 qrPlaceholder.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="font-size: 50px; color: var(--primary-color);"></i>`;
 
-                setTimeout(() => {
-                    qrPlaceholder.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=EPH_Disparos_Connect_${Date.now()}" alt="QR Code">`;
-                    statusEl.textContent = 'Aguardando leitura...';
-                }, 2000);
+                fetch(baseUrl + '/connect', { method: 'POST', mode: 'no-cors' }).catch(() => {});
 
                 setTimeout(() => {
-                    if (statusEl.textContent === 'Aguardando leitura...') {
-                        connections[instanceId].connected = true;
-                        saveState();
-                        renderConnectionCard(instanceId);
-                    }
-                }, 7000);
+                    qrPlaceholder.innerHTML = `<iframe src="${baseUrl}/qr" style="width:200px;height:200px;border:0;"></iframe>`;
+                    statusEl.textContent = 'Aguardando leitura...';
+                }, 1000);
+
+                const checkInterval = setInterval(() => {
+                    fetch(baseUrl + '/status')
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.conectado) {
+                                clearInterval(checkInterval);
+                                connections[instanceId].connected = true;
+                                saveState();
+                                renderConnectionCard(instanceId);
+                            }
+                        }).catch(() => {});
+                }, 5000);
             }
         };
 
@@ -947,54 +960,69 @@
                     option.textContent = data.name || `Chip ${id}`;
                     selector.appendChild(option);
                 });
-                loadSimulatedGroups(); 
+                loadGroupsFromApi();
             }
-            
-            selector.onchange = loadSimulatedGroups;
+
+            selector.onchange = loadGroupsFromApi;
             openModal(groupModal);
         });
-            
-        function loadSimulatedGroups() {
+
+        function loadGroupsFromApi() {
+            const instanceId = document.getElementById('group-instance-selector').value;
+            const baseUrl = BASE_URLS[instanceId];
             const groupsContainer = document.getElementById('groupsListContainer');
             groupsContainer.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Carregando grupos...';
-            
-            setTimeout(() => {
-                 groupsContainer.innerHTML = `
-                    <ul style="list-style:none; padding: 0;">
-                        <li class="group-item">Grupo da Família</li>
-                        <li class="group-item">Projeto X</li>
-                        <li class="group-item">Clientes VIP 2024</li>
-                        <li class="group-item">Equipe de Vendas</li>
-                    </ul>
-                 `;
-                 document.querySelectorAll('.group-item').forEach(item => {
-                     item.style.cssText = 'padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; cursor: pointer; transition: background-color 0.2s;';
-                     item.onmouseover = () => item.style.backgroundColor = 'var(--bg-color)';
-                     item.onmouseout = () => item.style.backgroundColor = 'transparent';
-                     item.onclick = () => selectGroup(item.textContent);
-                 });
-            }, 1500);
+
+            fetch(baseUrl + '/grupos')
+                .then(r => r.json())
+                .then(grupos => {
+                    if (!Array.isArray(grupos) || grupos.length === 0) {
+                        groupsContainer.innerHTML = '<p>Nenhum grupo encontrado.</p>';
+                        return;
+                    }
+                    groupsContainer.innerHTML = '<ul style="list-style:none; padding:0;"></ul>';
+                    const ul = groupsContainer.querySelector('ul');
+                    grupos.forEach(g => {
+                        const li = document.createElement('li');
+                        li.className = 'group-item';
+                        li.textContent = g.nome || g.subject || g.id;
+                        li.style.cssText = 'padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; cursor: pointer; transition: background-color 0.2s;';
+                        li.onmouseover = () => li.style.backgroundColor = 'var(--bg-color)';
+                        li.onmouseout = () => li.style.backgroundColor = 'transparent';
+                        li.onclick = () => selectGroup(li.textContent);
+                        ul.appendChild(li);
+                    });
+                })
+                .catch(() => {
+                    groupsContainer.innerHTML = '<p>Erro ao carregar grupos.</p>';
+                });
         }
 
         function selectGroup(groupName) {
+            const instanceId = document.getElementById('group-instance-selector').value;
+            const baseUrl = BASE_URLS[instanceId];
             contactsListBody.innerHTML = '';
-            
-            for(let i = 1; i <= 25; i++) {
-                const is_admin = Math.random() < 0.2; // 20% chance of being admin
-                const fakeNumber = `55${Math.floor(10 + Math.random() * 90)}9${Math.floor(10000000 + Math.random() * 90000000)}`;
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><input type="checkbox" class="contact-checkbox"></td>
-                    <td>${fakeNumber}</td>
-                    <td>${is_admin ? '<span class="admin-badge">Admin</span>' : '-'}</td>
-                    <td><button class="btn-icon remove-contact-btn"><i class="fa-solid fa-trash-can"></i></button></td>
-                `;
-                contactsListBody.appendChild(row);
-            }
-            
             document.querySelector('.results-table').style.display = 'block';
-            updateSelectionState();
-            closeModal(groupModal);
+            fetch(baseUrl + '/grupos/' + encodeURIComponent(groupName))
+                .then(r => r.json())
+                .then(data => {
+                    data.participantes.forEach(p => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" class="contact-checkbox"></td>
+                            <td>${p.numero}</td>
+                            <td>${p.admin ? '<span class="admin-badge">Admin</span>' : '-'}</td>
+                            <td><button class="btn-icon remove-contact-btn"><i class="fa-solid fa-trash-can"></i></button></td>
+                        `;
+                        contactsListBody.appendChild(row);
+                    });
+                    updateSelectionState();
+                    closeModal(groupModal);
+                })
+                .catch(() => {
+                    contactsListBody.innerHTML = '<tr><td colspan="4">Erro ao obter participantes.</td></tr>';
+                    updateSelectionState();
+                });
         }
 
         function updateSelectionState() {
