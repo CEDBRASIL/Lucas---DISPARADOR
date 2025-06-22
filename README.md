@@ -44,3 +44,9 @@ um QR code. Ao escanear (ou acessar `?done=1`) a mensagem "Conectado com sucesso
 será exibida.
 
 No frontend (`index.html`), um botão **Conectar Local** abre esse endpoint em um modal para facilitar o teste.
+
+## Endpoint de proxy
+
+O servidor Flask também expõe `/proxy`, que recebe a URL desejada via `?url=` e
+retorna o conteúdo com cabeçalhos CORS liberados. Ele pode ser usado para
+contornar restrições de CORS durante o desenvolvimento.

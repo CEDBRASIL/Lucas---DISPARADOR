@@ -832,13 +832,15 @@
             navLinks.forEach(link => link.classList.toggle('active', link.dataset.target === targetId));
         };
 
+        const PROXY_BASE = 'http://localhost:8000/proxy?url=';
+
         const startStatusMonitor = (instanceId) => {
             if (statusIntervals[instanceId]) return;
             const baseUrl = BASE_URLS[instanceId];
             statusIntervals[instanceId] = setInterval(async () => {
                 let isConnected = false;
                 try {
-                    const r = await fetch(baseUrl + '/connect');
+                    const r = await fetch(PROXY_BASE + encodeURIComponent(baseUrl + '/connect'));
                     const txt = await r.text();
                     isConnected = txt.toLowerCase().includes('conectado com sucesso');
                 } catch (e) {
