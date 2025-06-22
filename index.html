@@ -841,10 +841,15 @@
                 let isConnected = false;
                 try {
                     const r = await fetch(PROXY_BASE + encodeURIComponent(baseUrl + '/connect'));
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
                     const txt = await r.text();
                     isConnected = txt.toLowerCase().includes('conectado com sucesso');
                 } catch (e) {
                     isConnected = false;
+                    const card = document.querySelector(`.connection-card[data-instance='${instanceId}']`);
+                    if (card) {
+                        card.querySelector('.status').textContent = 'Erro de conexão';
+                    }
                 }
                 if (connections[instanceId].connected !== isConnected) {
                     connections[instanceId].connected = isConnected;

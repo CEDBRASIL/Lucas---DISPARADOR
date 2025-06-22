@@ -50,3 +50,6 @@ No frontend (`index.html`), um botão **Conectar Local** abre esse endpoint em u
 O servidor Flask também expõe `/proxy`, que recebe a URL desejada via `?url=` e
 retorna o conteúdo com cabeçalhos CORS liberados. Ele pode ser usado para
 contornar restrições de CORS durante o desenvolvimento.
+Mantenha esse servidor rodando enquanto utiliza a página `index.html`; caso
+contrário, o status de conexão ficará preso em "Aguardando leitura" mesmo após a
+leitura do QR Code.
