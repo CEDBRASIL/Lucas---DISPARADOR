@@ -8,3 +8,4 @@ Foi implementada a confirmação de nome do chip via tecla Enter. O README expli
 Adicionada funcionalidade de exportação de contatos extraídos no Gerador de Leads. Agora é possível salvar em CSV ou XLSX usando o SheetJS. IDs de botões e script do CDN foram incluídos em index.html.
 Adicionadas opções de seleção de chip e grupo diretamente na aba Gerador de Leads. A lista de grupos é carregada conforme o chip escolhido e os participantes são obtidos ao clicar em Carregar.
 Agora o seletor de chip no Gerador de Leads exibe sempre as opções de Chip 1 a 3, mesmo sem conexão.
+\nA listagem de grupos passou a usar o proxy local definido em PROXY_BASE. README atualizado mencionando que, se o proxy estiver offline, a página exibirá "Erro ao carregar" ao tentar obter os grupos.
