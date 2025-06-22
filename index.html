@@ -832,34 +832,43 @@
             navLinks.forEach(link => link.classList.toggle('active', link.dataset.target === targetId));
         };
 
+        const checkQrConnection = async (baseUrl) => {
+            try {
+                const r = await fetch(baseUrl + '/qr');
+                const txt = await r.text();
+                const lower = txt.toLowerCase();
+                return lower.includes('qr code não disponível') || lower.includes('qr code nao disponivel');
+            } catch (e) {
+                return false;
+            }
+        };
+
         const startStatusMonitor = (instanceId) => {
             if (statusIntervals[instanceId]) return;
             const baseUrl = BASE_URLS[instanceId];
-            statusIntervals[instanceId] = setInterval(() => {
-                fetch(baseUrl + '/status')
-                    .then(r => r.json())
-                    .then(data => {
-                        const isConnected = !!data.conectado;
-                        if (connections[instanceId].connected !== isConnected) {
-                            connections[instanceId].connected = isConnected;
-                            saveState();
-                            renderConnectionCard(instanceId);
-                        }
-                        if (isConnected && qrIntervals[instanceId]) {
-                            clearInterval(qrIntervals[instanceId]);
-                            delete qrIntervals[instanceId];
-                        }
-                    })
-                    .catch(() => {
-                        if (connections[instanceId].connected) {
-                            connections[instanceId].connected = false;
-                            saveState();
-                            renderConnectionCard(instanceId);
-                        }
-                    });
+            statusIntervals[instanceId] = setInterval(async () => {
+                let isConnected = false;
+                try {
+                    const r = await fetch(baseUrl + '/status');
+                    const data = await r.json();
+                    isConnected = !!data.conectado;
+                    if (!isConnected) {
+                        isConnected = await checkQrConnection(baseUrl);
+                    }
+                } catch (e) {
+                    isConnected = await checkQrConnection(baseUrl);
+                }
+                if (connections[instanceId].connected !== isConnected) {
+                    connections[instanceId].connected = isConnected;
+                    saveState();
+                    renderConnectionCard(instanceId);
+                }
+                if (isConnected && qrIntervals[instanceId]) {
+                    clearInterval(qrIntervals[instanceId]);
+                    delete qrIntervals[instanceId];
+                }
             }, 1000);
         };
-
         const renderConnectionCard = (instanceId) => {
             const card = document.querySelector(`.connection-card[data-instance='${instanceId}']`);
             if (!card) return;
