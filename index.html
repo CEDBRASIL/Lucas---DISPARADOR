@@ -848,7 +848,7 @@
                     isConnected = false;
                     const card = document.querySelector(`.connection-card[data-instance='${instanceId}']`);
                     if (card) {
-                        card.querySelector('.status').textContent = 'Erro de conexão';
+                        card.querySelector('.status').textContent = 'Erro de conexão (proxy offline?)';
                     }
                 }
                 if (connections[instanceId].connected !== isConnected) {
