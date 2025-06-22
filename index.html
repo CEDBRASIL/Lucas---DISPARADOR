@@ -1045,7 +1045,7 @@
             if (!instanceId) return;
             const baseUrl = BASE_URLS[instanceId];
             leadGroupSelector.innerHTML = '<option>Carregando...</option>';
-            fetch(baseUrl + '/grupos')
+            fetch(PROXY_BASE + encodeURIComponent(baseUrl + '/grupos'))
                 .then(r => r.json())
                 .then(grupos => {
                     if (!Array.isArray(grupos) || grupos.length === 0) {
@@ -1101,7 +1101,7 @@
             const groupsContainer = document.getElementById('groupsListContainer');
             groupsContainer.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Carregando grupos...';
 
-            fetch(baseUrl + '/grupos')
+            fetch(PROXY_BASE + encodeURIComponent(baseUrl + '/grupos'))
                 .then(r => r.json())
                 .then(grupos => {
                     if (!Array.isArray(grupos) || grupos.length === 0) {
@@ -1131,7 +1131,7 @@
             const baseUrl = BASE_URLS[instanceId];
             contactsListBody.innerHTML = '';
             document.querySelector('.results-table').style.display = 'block';
-            fetch(baseUrl + '/grupos/' + encodeURIComponent(groupName))
+            fetch(PROXY_BASE + encodeURIComponent(baseUrl + '/grupos/' + encodeURIComponent(groupName)))
                 .then(r => r.json())
                 .then(data => {
                     data.participantes.forEach(p => {
