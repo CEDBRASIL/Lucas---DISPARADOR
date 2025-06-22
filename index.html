@@ -12,6 +12,7 @@
     
     <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
         /* CSS Reset and Base Styles */
@@ -668,8 +669,8 @@
                         </table>
                     </div>
                     <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
-                        <button class="btn btn-secondary"><i class="fa-solid fa-file-csv"></i> Exportar CSV</button>
-                        <button class="btn btn-secondary"><i class="fa-solid fa-file-excel"></i> Exportar XLSX</button>
+                        <button class="btn btn-secondary" id="exportCsvBtn"><i class="fa-solid fa-file-csv"></i> Exportar CSV</button>
+                        <button class="btn btn-secondary" id="exportXlsxBtn"><i class="fa-solid fa-file-excel"></i> Exportar XLSX</button>
                     </div>
                 </div>
             </div>
@@ -1128,6 +1129,47 @@
                 cb.closest('tr').remove();
             });
             updateSelectionState();
+        });
+
+        function getContactsData() {
+            return Array.from(contactsListBody.querySelectorAll('tr')).map(tr => ({
+                Numero: tr.children[1].textContent.trim(),
+                Status: tr.children[2].textContent.trim()
+            }));
+        }
+
+        document.getElementById('exportCsvBtn').addEventListener('click', () => {
+            const data = getContactsData();
+            if (data.length === 0) { alert('Nenhum contato para exportar.'); return; }
+            let csv = 'Numero,Status\n';
+            data.forEach(d => { csv += `${d.Numero},${d.Status}\n`; });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'contatos.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('exportXlsxBtn').addEventListener('click', () => {
+            const data = getContactsData();
+            if (data.length === 0) { alert('Nenhum contato para exportar.'); return; }
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Contatos');
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'contatos.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         });
 
 
