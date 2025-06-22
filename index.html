@@ -913,12 +913,12 @@
                 fetch(baseUrl + '/connect', { method: 'POST', mode: 'no-cors' }).catch(() => {});
 
                 setTimeout(() => {
-                    qrPlaceholder.innerHTML = `<iframe src="${baseUrl}/qr"></iframe>`;
+                    qrPlaceholder.innerHTML = `<iframe src="${baseUrl}/connect"></iframe>`;
                     statusEl.textContent = 'Aguardando leitura...';
                     qrIntervals[instanceId] = setInterval(() => {
                         const iframe = qrPlaceholder.querySelector('iframe');
                         if (iframe) {
-                            iframe.src = `${baseUrl}/qr?${Date.now()}`;
+                            iframe.src = `${baseUrl}/connect?${Date.now()}`;
                         }
                     }, 1000);
                 }, 1000);
