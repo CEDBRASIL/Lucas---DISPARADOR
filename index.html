@@ -891,9 +891,9 @@
             });
         };
 
-        const handleConnect = (instanceId) => {
+        const handleConnect = (instanceId, forceConnect = false) => {
             const baseUrl = BASE_URLS[instanceId];
-            if (connections[instanceId].connected) {
+            if (connections[instanceId].connected && !forceConnect) {
                 connections[instanceId].connected = false;
                 saveState();
                 renderConnectionCard(instanceId);
@@ -978,6 +978,7 @@
         Object.keys(connections).forEach(id => {
             renderConnectionCard(id);
             startStatusMonitor(id);
+            handleConnect(id, true);
         });
         renderCampaigns();
 
