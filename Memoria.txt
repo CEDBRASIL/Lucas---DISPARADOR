@@ -4,3 +4,4 @@ Foi adicionado um tratamento de erro em `index.html` que exibe "Erro de conexão
 
 Foi removida a caixa do Gerador de Leads em index.html conforme solicitado.
 Agora o modal de criação de campanha exibe sempre as opções de Chip 1 a 3, mesmo quando nenhum está conectado.
+Foi implementada a confirmação de nome do chip via tecla Enter. O README explica como nomear cada chip.
