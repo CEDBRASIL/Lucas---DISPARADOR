@@ -244,20 +244,18 @@
         }
         
         .connection-card {
-            background-color: var(--card-bg);
-            padding: 1.5rem;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
+            background: none;
+            border: none;
+            padding: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             text-align: center;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         .connection-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            transform: none;
+            box-shadow: none;
         }
 
         .connection-card .status {
@@ -324,6 +322,13 @@
             color: var(--text-color);
             margin-bottom: 1rem;
             text-align: center;
+        }
+
+        .connection-card .status,
+        .connection-card input,
+        .connection-card .info-text,
+        .connection-card .connect-btn {
+            display: none;
         }
 
         /* Gerador de Leads Page */
