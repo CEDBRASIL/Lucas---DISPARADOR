@@ -1,0 +1,3 @@
+Ao analisar o problema "Aguardando leitura" mesmo após conectar, foi verificado que o arquivo `index.html` realiza a checagem de conexão através do endpoint `/connect` utilizando o proxy local exposto por `connect_server.py`. Caso esse servidor não esteja rodando, a requisição falha e a interface permanece no estado de espera.
+
+Foi adicionado um tratamento de erro em `index.html` que exibe "Erro de conexão" se a consulta ao proxy falhar. O `README.md` foi atualizado ressaltando que o `connect_server.py` deve permanecer em execução para que o status de conexão seja atualizado corretamente.
