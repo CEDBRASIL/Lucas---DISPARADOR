@@ -647,6 +647,11 @@
             <div class="lead-gen-container">
                 <h3>Extrair Contatos de Grupos</h3>
                 <p>Selecione um grupo para extrair os contatos.</p>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
+                    <select id="leadChipSelector" class="form-group"></select>
+                    <select id="leadGroupSelector" class="form-group"></select>
+                    <button class="btn" id="loadGroupBtn"><i class="fa-solid fa-download"></i> Carregar</button>
+                </div>
                 <button class="btn" id="selectGroupBtn"><i class="fa-solid fa-list-check"></i> Selecionar Grupo</button>
                 
                 <div class="results-table card">
@@ -815,10 +820,13 @@
 
         const importContactsBtn = document.getElementById('importContactsBtn');
         const contactFileInput = document.getElementById('contactFileInput');
-        
+
         const contactsListBody = document.getElementById('contactsList');
         const selectAllCheckbox = document.getElementById('selectAllCheckbox');
         const removeSelectedBtn = document.getElementById('removeSelectedBtn');
+        const leadChipSelector = document.getElementById('leadChipSelector');
+        const leadGroupSelector = document.getElementById('leadGroupSelector');
+        const loadGroupBtn = document.getElementById('loadGroupBtn');
 
         // --- Functions ---
         const saveState = () => {
@@ -904,6 +912,7 @@
                     confirmName();
                 }
             });
+            updateLeadChips();
         };
 
         const handleConnect = (instanceId, forceConnect = false) => {
@@ -995,6 +1004,7 @@
             startStatusMonitor(id);
             handleConnect(id, true);
         });
+        updateLeadChips();
         renderCampaigns();
 
         // --- Event Listeners ---
@@ -1014,6 +1024,54 @@
 
         
         // Gerador de Leads Logic
+        function updateLeadChips() {
+            leadChipSelector.innerHTML = '';
+            const connected = Object.entries(connections).filter(([id,d]) => d.connected);
+            if (connected.length === 0) {
+                leadChipSelector.innerHTML = '<option value="">Nenhum chip conectado</option>';
+                leadGroupSelector.innerHTML = '<option value="">Nenhum chip conectado</option>';
+                return;
+            }
+            connected.forEach(([id,d]) => {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = d.name || `Chip ${id}`;
+                leadChipSelector.appendChild(opt);
+            });
+            loadLeadGroups();
+        }
+
+        function loadLeadGroups() {
+            const instanceId = leadChipSelector.value;
+            if (!instanceId) return;
+            const baseUrl = BASE_URLS[instanceId];
+            leadGroupSelector.innerHTML = '<option>Carregando...</option>';
+            fetch(baseUrl + '/grupos')
+                .then(r => r.json())
+                .then(grupos => {
+                    if (!Array.isArray(grupos) || grupos.length === 0) {
+                        leadGroupSelector.innerHTML = '<option value="">Nenhum grupo encontrado</option>';
+                        return;
+                    }
+                    leadGroupSelector.innerHTML = '';
+                    grupos.forEach(g => {
+                        const opt = document.createElement('option');
+                        opt.value = g.nome || g.subject || g.id;
+                        opt.textContent = g.nome || g.subject || g.id;
+                        leadGroupSelector.appendChild(opt);
+                    });
+                })
+                .catch(() => {
+                    leadGroupSelector.innerHTML = '<option>Erro ao carregar</option>';
+                });
+        }
+
+        leadChipSelector.addEventListener('change', loadLeadGroups);
+        loadGroupBtn.addEventListener('click', () => {
+            if (!leadChipSelector.value || !leadGroupSelector.value) { alert('Selecione o chip e o grupo'); return; }
+            selectGroup(leadGroupSelector.value, leadChipSelector.value);
+        });
+
         selectGroupBtn.addEventListener('click', () => {
             const selector = document.getElementById('group-instance-selector');
             const groupsContainer = document.getElementById('groupsListContainer');
@@ -1069,8 +1127,8 @@
                 });
         }
 
-        function selectGroup(groupName) {
-            const instanceId = document.getElementById('group-instance-selector').value;
+        function selectGroup(groupName, instanceId) {
+            if (!instanceId) instanceId = document.getElementById('group-instance-selector').value;
             const baseUrl = BASE_URLS[instanceId];
             contactsListBody.innerHTML = '';
             document.querySelector('.results-table').style.display = 'block';
