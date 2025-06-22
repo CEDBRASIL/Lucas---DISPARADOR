@@ -832,31 +832,17 @@
             navLinks.forEach(link => link.classList.toggle('active', link.dataset.target === targetId));
         };
 
-        const checkQrConnection = async (baseUrl) => {
-            try {
-                const r = await fetch(baseUrl + '/qr');
-                const txt = await r.text();
-                const lower = txt.toLowerCase();
-                return lower.includes('qr code não disponível') || lower.includes('qr code nao disponivel');
-            } catch (e) {
-                return false;
-            }
-        };
-
         const startStatusMonitor = (instanceId) => {
             if (statusIntervals[instanceId]) return;
             const baseUrl = BASE_URLS[instanceId];
             statusIntervals[instanceId] = setInterval(async () => {
                 let isConnected = false;
                 try {
-                    const r = await fetch(baseUrl + '/status');
-                    const data = await r.json();
-                    isConnected = !!data.conectado;
-                    if (!isConnected) {
-                        isConnected = await checkQrConnection(baseUrl);
-                    }
+                    const r = await fetch(baseUrl + '/connect');
+                    const txt = await r.text();
+                    isConnected = txt.toLowerCase().includes('conectado com sucesso');
                 } catch (e) {
-                    isConnected = await checkQrConnection(baseUrl);
+                    isConnected = false;
                 }
                 if (connections[instanceId].connected !== isConnected) {
                     connections[instanceId].connected = isConnected;
