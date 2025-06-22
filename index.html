@@ -863,7 +863,7 @@
             
             const connection = connections[instanceId];
             let statusClass = connection.connected ? 'connected' : 'disconnected';
-            let statusText = connection.connected ? 'Conectado' : 'Desconectado';
+            let statusText = connection.connected ? 'Conectado!' : 'Desconectado';
             
             card.innerHTML = `
                 <span class="status ${statusClass}">${statusText}</span>
