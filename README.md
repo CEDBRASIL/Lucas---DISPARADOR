@@ -28,3 +28,19 @@ python3 send_messages.py --chip 1 --mensagens mensagens.txt --contatos contatos.
 ```
 
 O envio é feito de forma humanizada com atrasos aleatórios entre 30 e 134 segundos e utiliza o endpoint `/send` do chip selecionado.
+
+## Novo endpoint /connect
+
+Um pequeno servidor Flask foi adicionado para demonstrar o endpoint `/connect`.
+Execute-o com:
+
+```bash
+pip install flask qrcode[pil] --user
+python3 connect_server.py
+```
+
+Acesse `http://localhost:8000/connect` em seu navegador. O primeiro acesso exibe
+um QR code. Ao escanear (ou acessar `?done=1`) a mensagem "Conectado com sucesso"
+será exibida.
+
+No frontend (`index.html`), um botão **Conectar Local** abre esse endpoint em um modal para facilitar o teste.
