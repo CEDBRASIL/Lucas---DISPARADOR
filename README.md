@@ -55,3 +55,10 @@ ele não esteja acessível (por exemplo, ao hospedar o HTML em um serviço
 estático), o monitoramento de conexão exibirá **Erro de conexão (proxy
 offline?)**. Nesse caso, disponibilize o `connect_server.py` online e ajuste o
 valor de `PROXY_BASE` em `index.html` para apontar para o endereço correto.
+
+## Nomeando chips
+
+Em cada cartão de conexão é possível definir um nome para o chip. Digite o
+nome desejado no campo **Nome do Chip** e pressione **Enter** para confirmar.
+Esse nome aparecerá sempre que o chip estiver conectado e é salvo no cache do
+ navegador (localStorage).

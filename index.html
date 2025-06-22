@@ -892,10 +892,18 @@
             `;
             
             card.querySelector('.connect-btn').addEventListener('click', () => handleConnect(instanceId));
-            card.querySelector('.instance-name').addEventListener('change', (e) => {
-                connections[instanceId].name = e.target.value;
+            const nameInput = card.querySelector('.instance-name');
+            const confirmName = () => {
+                connections[instanceId].name = nameInput.value;
                 saveState();
                 if(connections[instanceId].connected) renderConnectionCard(instanceId);
+            };
+            nameInput.addEventListener('change', confirmName);
+            nameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    confirmName();
+                }
             });
         };
 
