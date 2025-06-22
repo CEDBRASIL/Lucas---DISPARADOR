@@ -629,7 +629,6 @@
         <section id="conectar" class="page active">
             <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <h2>Conectar Números</h2>
-                <button class="btn" id="openLocalConnectBtn"><i class="fa-solid fa-qrcode"></i> Conectar Local</button>
             </div>
             <div class="connections-grid">
                 <!-- Connection Cards will be populated by JS -->
@@ -803,7 +802,6 @@
         const groupModal = document.getElementById('groupSelectorModal');
         const campaignModal = document.getElementById('campaignModal');
         const importModal = document.getElementById('importModal');
-        const openLocalConnectBtn = document.getElementById('openLocalConnectBtn');
         const localConnectModal = document.getElementById('localConnectModal');
         const localConnectFrame = document.getElementById('localConnectFrame');
         const selectGroupBtn = document.getElementById('selectGroupBtn');
@@ -1005,10 +1003,6 @@
             });
         });
 
-        openLocalConnectBtn.addEventListener('click', () => {
-            localConnectFrame.src = '/connect';
-            openModal(localConnectModal);
-        });
         
         // Gerador de Leads Logic
         selectGroupBtn.addEventListener('click', () => {
