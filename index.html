@@ -1133,15 +1133,10 @@
         createCampaignBtn.addEventListener('click', () => {
             const selector = document.getElementById('chipSelector');
             selector.innerHTML = '';
-            const connectedChips = Object.entries(connections).filter(([id, data]) => data.connected);
-            
-            if (connectedChips.length === 0) {
-                selector.innerHTML = '<option disabled>Nenhum chip conectado</option>';
-            } else {
-                connectedChips.forEach(([id, data]) => {
-                    selector.innerHTML += `<option value="${id}">${data.name || `Chip ${id}`}</option>`;
-                });
-            }
+
+            Object.entries(connections).forEach(([id, data]) => {
+                selector.innerHTML += `<option value="${id}">${data.name || `Chip ${id}`}</option>`;
+            });
             
             campaignForm.reset();
             variationsContainer.innerHTML = '';

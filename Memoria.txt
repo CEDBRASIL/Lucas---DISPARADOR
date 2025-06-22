@@ -3,3 +3,4 @@ Ao analisar o problema "Aguardando leitura" mesmo após conectar, foi verificado
 Foi adicionado um tratamento de erro em `index.html` que exibe "Erro de conexão" se a consulta ao proxy falhar. O `README.md` foi atualizado ressaltando que o `connect_server.py` deve permanecer em execução para que o status de conexão seja atualizado corretamente.
 
 Foi removida a caixa do Gerador de Leads em index.html conforme solicitado.
+Agora o modal de criação de campanha exibe sempre as opções de Chip 1 a 3, mesmo quando nenhum está conectado.
