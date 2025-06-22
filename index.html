@@ -1026,18 +1026,17 @@
         // Gerador de Leads Logic
         function updateLeadChips() {
             leadChipSelector.innerHTML = '';
-            const connected = Object.entries(connections).filter(([id,d]) => d.connected);
-            if (connected.length === 0) {
-                leadChipSelector.innerHTML = '<option value="">Nenhum chip conectado</option>';
-                leadGroupSelector.innerHTML = '<option value="">Nenhum chip conectado</option>';
-                return;
-            }
-            connected.forEach(([id,d]) => {
+            Object.entries(connections).forEach(([id, d]) => {
                 const opt = document.createElement('option');
                 opt.value = id;
                 opt.textContent = d.name || `Chip ${id}`;
                 leadChipSelector.appendChild(opt);
             });
+            if (leadChipSelector.options.length === 0) {
+                leadChipSelector.innerHTML = '<option value="">Nenhum chip cadastrado</option>';
+                leadGroupSelector.innerHTML = '<option value="">Nenhum chip cadastrado</option>';
+                return;
+            }
             loadLeadGroups();
         }
 

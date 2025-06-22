@@ -61,3 +61,5 @@ Em cada cartão de conexão é possível definir um nome para o chip. Digite o
 nome desejado no campo **Nome do Chip** e pressione **Enter** para confirmar.
 Esse nome aparecerá sempre que o chip estiver conectado e é salvo no cache do
  navegador (localStorage).
+
+No Gerador de Leads o seletor de chip sempre exibe as opções de Chip 1 a 3, mesmo quando nenhum está conectado.
