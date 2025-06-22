@@ -54,6 +54,9 @@ ele não esteja acessível (por exemplo, ao hospedar o HTML em um serviço
 estático), o monitoramento de conexão exibirá **Erro de conexão (proxy
 offline?)**. Nesse caso, disponibilize o `connect_server.py` online e ajuste o
 valor de `PROXY_BASE` em `index.html` para apontar para o endereço correto.
+A listagem de grupos no Gerador de Leads também utiliza esse proxy para evitar
+erros de CORS, portanto se ele estiver inativo a mensagem **Erro ao carregar**
+será exibida ao tentar obter os grupos.
 
 ## Nomeando chips
 

@@ -886,6 +886,215 @@
         });
 
 
+        
+        // Gerador de Leads Logic
+        function updateLeadChips() {
+            leadChipSelector.innerHTML = '';
+            Object.entries(connections).forEach(([id, d]) => {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = d.name || `Chip ${id}`;
+                leadChipSelector.appendChild(opt);
+            });
+            if (leadChipSelector.options.length === 0) {
+                leadChipSelector.innerHTML = '<option value="">Nenhum chip cadastrado</option>';
+                leadGroupSelector.innerHTML = '<option value="">Nenhum chip cadastrado</option>';
+                return;
+            }
+            loadLeadGroups();
+        }
+
+        function loadLeadGroups() {
+            const instanceId = leadChipSelector.value;
+            if (!instanceId) return;
+            const baseUrl = BASE_URLS[instanceId];
+            leadGroupSelector.innerHTML = '<option>Carregando...</option>';
+            fetch(PROXY_BASE + encodeURIComponent(baseUrl + '/grupos'))
+                .then(r => r.json())
+                .then(grupos => {
+                    if (!Array.isArray(grupos) || grupos.length === 0) {
+                        leadGroupSelector.innerHTML = '<option value="">Nenhum grupo encontrado</option>';
+                        return;
+                    }
+                    leadGroupSelector.innerHTML = '';
+                    grupos.forEach(g => {
+                        const opt = document.createElement('option');
+                        opt.value = g.nome || g.subject || g.id;
+                        opt.textContent = g.nome || g.subject || g.id;
+                        leadGroupSelector.appendChild(opt);
+                    });
+                })
+                .catch(() => {
+                    leadGroupSelector.innerHTML = '<option>Erro ao carregar</option>';
+                });
+        }
+
+        leadChipSelector.addEventListener('change', loadLeadGroups);
+        loadGroupBtn.addEventListener('click', () => {
+            if (!leadChipSelector.value || !leadGroupSelector.value) { alert('Selecione o chip e o grupo'); return; }
+            selectGroup(leadGroupSelector.value, leadChipSelector.value);
+        });
+
+        selectGroupBtn.addEventListener('click', () => {
+            const selector = document.getElementById('group-instance-selector');
+            const groupsContainer = document.getElementById('groupsListContainer');
+            selector.innerHTML = '';
+            groupsContainer.innerHTML = '';
+
+            const connectedChips = Object.entries(connections).filter(([id, data]) => data.connected);
+
+            if (connectedChips.length === 0) {
+                 groupsContainer.innerHTML = '<p>Nenhum número conectado para carregar os grupos.</p>';
+            } else {
+                connectedChips.forEach(([id, data]) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = data.name || `Chip ${id}`;
+                    selector.appendChild(option);
+                });
+                loadGroupsFromApi();
+            }
+
+            selector.onchange = loadGroupsFromApi;
+            openModal(groupModal);
+        });
+
+        function loadGroupsFromApi() {
+            const instanceId = document.getElementById('group-instance-selector').value;
+            const baseUrl = BASE_URLS[instanceId];
+            const groupsContainer = document.getElementById('groupsListContainer');
+            groupsContainer.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Carregando grupos...';
+
+            fetch(PROXY_BASE + encodeURIComponent(baseUrl + '/grupos'))
+                .then(r => r.json())
+                .then(grupos => {
+                    if (!Array.isArray(grupos) || grupos.length === 0) {
+                        groupsContainer.innerHTML = '<p>Nenhum grupo encontrado.</p>';
+                        return;
+                    }
+                    groupsContainer.innerHTML = '<ul style="list-style:none; padding:0;"></ul>';
+                    const ul = groupsContainer.querySelector('ul');
+                    grupos.forEach(g => {
+                        const li = document.createElement('li');
+                        li.className = 'group-item';
+                        li.textContent = g.nome || g.subject || g.id;
+                        li.style.cssText = 'padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; cursor: pointer; transition: background-color 0.2s;';
+                        li.onmouseover = () => li.style.backgroundColor = 'var(--bg-color)';
+                        li.onmouseout = () => li.style.backgroundColor = 'transparent';
+                        li.onclick = () => selectGroup(li.textContent);
+                        ul.appendChild(li);
+                    });
+                })
+                .catch(() => {
+                    groupsContainer.innerHTML = '<p>Erro ao carregar grupos.</p>';
+                });
+        }
+
+        function selectGroup(groupName, instanceId) {
+            if (!instanceId) instanceId = document.getElementById('group-instance-selector').value;
+            const baseUrl = BASE_URLS[instanceId];
+            contactsListBody.innerHTML = '';
+            document.querySelector('.results-table').style.display = 'block';
+            fetch(PROXY_BASE + encodeURIComponent(baseUrl + '/grupos/' + encodeURIComponent(groupName)))
+                .then(r => r.json())
+                .then(data => {
+                    data.participantes.forEach(p => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" class="contact-checkbox"></td>
+                            <td>${p.numero}</td>
+                            <td>${p.admin ? '<span class="admin-badge">Admin</span>' : '-'}</td>
+                            <td><button class="btn-icon remove-contact-btn"><i class="fa-solid fa-trash-can"></i></button></td>
+                        `;
+                        contactsListBody.appendChild(row);
+                    });
+                    updateSelectionState();
+                    closeModal(groupModal);
+                })
+                .catch(() => {
+                    contactsListBody.innerHTML = '<tr><td colspan="4">Erro ao obter participantes.</td></tr>';
+                    updateSelectionState();
+                });
+        }
+
+        function updateSelectionState() {
+            const checkboxes = contactsListBody.querySelectorAll('.contact-checkbox');
+            const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            
+            removeSelectedBtn.style.display = checkedCount > 0 ? 'inline-flex' : 'none';
+            
+            const allChecked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+            selectAllCheckbox.checked = allChecked;
+        }
+
+        contactsListBody.addEventListener('click', (e) => {
+            // Individual remove button
+            if (e.target.closest('.remove-contact-btn')) {
+                e.target.closest('tr').remove();
+                updateSelectionState();
+            }
+            // Checkbox click
+            if (e.target.classList.contains('contact-checkbox')) {
+                updateSelectionState();
+            }
+        });
+
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            contactsListBody.querySelectorAll('.contact-checkbox').forEach(cb => cb.checked = isChecked);
+            updateSelectionState();
+        });
+        
+        removeSelectedBtn.addEventListener('click', () => {
+            contactsListBody.querySelectorAll('.contact-checkbox:checked').forEach(cb => {
+                cb.closest('tr').remove();
+            });
+            updateSelectionState();
+        });
+
+        function getContactsData() {
+            return Array.from(contactsListBody.querySelectorAll('tr')).map(tr => ({
+                Numero: tr.children[1].textContent.trim(),
+                Status: tr.children[2].textContent.trim()
+            }));
+        }
+
+        document.getElementById('exportCsvBtn').addEventListener('click', () => {
+            const data = getContactsData();
+            if (data.length === 0) { alert('Nenhum contato para exportar.'); return; }
+            let csv = 'Numero,Status\n';
+            data.forEach(d => { csv += `${d.Numero},${d.Status}\n`; });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'contatos.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('exportXlsxBtn').addEventListener('click', () => {
+            const data = getContactsData();
+            if (data.length === 0) { alert('Nenhum contato para exportar.'); return; }
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Contatos');
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'contatos.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+
+
         // Campaign Modal Logic
         createCampaignBtn.addEventListener('click', () => {
             const selector = document.getElementById('chipSelector');
