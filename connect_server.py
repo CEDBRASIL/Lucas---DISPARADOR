@@ -1,14 +1,31 @@
 import base64
 import io
-from flask import Flask, request
+from flask import Flask, request, make_response
 import qrcode
 
 app = Flask(__name__)
 connected = False
 
-@app.get('/connect')
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
+
+@app.route('/connect', methods=['GET', 'POST', 'OPTIONS'])
 def connect():
     global connected
+    if request.method == 'OPTIONS':
+        resp = make_response()
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return resp
+    if request.method == 'POST':
+        connected = False
+        return '', 204
     if request.args.get('done') == '1':
         connected = True
     if connected:
