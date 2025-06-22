@@ -1161,28 +1161,45 @@
             });
         });
 
-        campaignForm.addEventListener('submit', (e) => {
+        campaignForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const selectedChipId = document.getElementById('chipSelector').value;
             if (!selectedChipId) { alert('Por favor, conecte um chip primeiro.'); return; }
 
             const messages = Array.from(variationsContainer.querySelectorAll('.message-input')).map(input => input.value).filter(val => val.trim() !== '');
             if (messages.length === 0) { alert('Adicione pelo menos uma variação de mensagem.'); return; }
-            
+
+            const contacts = document.getElementById('contacts').value.split('\n').map(n => n.trim()).filter(n => n !== '');
+            if (contacts.length === 0) { alert('Adicione pelo menos um contato.'); return; }
+
             const newCampaign = {
                 id: Date.now(),
                 name: document.getElementById('campaignName').value,
                 chipId: selectedChipId,
                 chipName: connections[selectedChipId].name || `Chip ${selectedChipId}`,
                 messages: messages,
-                contactsCount: document.getElementById('contacts').value.split('\n').filter(n => n.trim() !== '').length,
-                status: 'completed', // Simplified for demo
+                contactsCount: contacts.length,
+                status: 'sending',
             };
-            
+
             campaigns.push(newCampaign);
             saveState();
             renderCampaigns();
             closeModal(campaignModal);
+
+            const baseUrl = BASE_URLS[selectedChipId];
+            for (const numero of contacts) {
+                const msg = messages[Math.floor(Math.random() * messages.length)];
+                try {
+                    await fetch(`${baseUrl}/send?para=${encodeURIComponent(numero)}&mensagem=${encodeURIComponent(msg)}`);
+                } catch (err) {
+                    console.error('Erro ao enviar para', numero, err);
+                }
+            }
+
+            newCampaign.status = 'completed';
+            saveState();
+            renderCampaigns();
         });
         
         // Import Logic
