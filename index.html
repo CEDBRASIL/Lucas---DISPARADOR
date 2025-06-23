@@ -1,127 +1,792 @@
-// multi-session WhatsApp disparador com Baileys, WebSocket, frontend, upload CSV
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disparador PRO</title>
 
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const http = require('http');
-const multer = require('multer');
-const { parse } = require('csv-parse/sync');
-const { Server } = require('socket.io');
-const qrcode = require('qrcode');
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
-const { Boom } = require('@hapi/boom');
+    <!-- Favicon SVG -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' fill='%23a78bfa'>&lt;/&gt;</text></svg>">
 
-const SESSIONS = ['chip1', 'chip2', 'chip3'];
-const sockets = {};
-const clients = {};
-const numbers = {};
-const sockInstances = {};
-const uploads = multer({ dest: 'uploads/' });
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+    <!-- Socket.IO Client via CDN -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
-app.use(express.json());
-app.use(express.static('public'));
+    <!-- Lucide Icons via CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-function normalizarNumero(numero) {
-  let num = numero.replace(/\D/g, '');
-  if (num.startsWith('55') && num.length === 13 && num[4] === '9') {
-    num = '55' + num.slice(5);
-  } else if (num.length === 11 && num.startsWith('9')) {
-    num = '5561' + num.slice(1);
-  } else if (num.length === 10 || num.length === 11) {
-    num = '55' + num;
-  }
-  return num;
-}
+    <!-- SheetJS (xlsx) for reading Excel files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-async function iniciarSessao(sessionId) {
-  const { state, saveCreds } = await useMultiFileAuthState(`auth/${sessionId}`);
-  const sock = makeWASocket({ auth: state, printQRInTerminal: false });
-  sockInstances[sessionId] = sock;
+    <style>
+        /* Light Theme Variables */
+        .light {
+            --background: #f4f4f5; /* zinc-100 */
+            --card: #ffffff;       /* white */
+            --input: #f4f4f5;      /* zinc-100 */
+            --border: #e4e4e7;     /* zinc-200 */
+            --text-primary: #18181b; /* zinc-900 */
+            --text-secondary: #71717a; /* zinc-500 */
+        }
 
-  numbers[sessionId] = [];
+        /* Dark Theme Variables */
+        .dark {
+            --background: #09090b; /* zinc-950 */
+            --card: #18181b;       /* zinc-900 */
+            --input: #27272a;      /* zinc-800 */
+            --border: #3f3f46;     /* zinc-700 */
+            --text-primary: #fafafa; /* zinc-50 */
+            --text-secondary: #a1a1aa; /* zinc-400 */
+        }
 
-  sock.ev.on('creds.update', saveCreds);
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, qr, lastDisconnect } = update;
-    if (qr) {
-      const qrBase64 = await qrcode.toDataURL(qr);
-      sockets[sessionId]?.emit('qr', qrBase64);
-    }
-    if (connection === 'close') {
-      const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-      if (reason !== DisconnectReason.loggedOut) iniciarSessao(sessionId);
-    }
-  });
-}
+        :root {
+            --primary: #a78bfa; /* violet-400 */
+        }
 
-SESSIONS.forEach(iniciarSessao);
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: var(--background);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+        }
 
-app.get('/qr', (req, res) => {
-  const session = req.query.session;
-  if (!session || !SESSIONS.includes(session)) {
-    return res.status(400).send('Sessão inválida');
-  }
-  res.send(`<html><body><script>
-    const socket = io();
-    socket.emit('join', '${session}');
-    socket.on('qr', qr => {
-      document.body.innerHTML = '<img src="' + qr + '">';
+        .card { background-color: var(--card); border: 1px solid var(--border); border-radius: 8px; transition: background-color 0.3s, border-color 0.3s; }
+        .input-field { background-color: var(--input); border: 1px solid var(--border); border-radius: 6px; outline: none; color: var(--text-primary); transition: background-color 0.3s, border-color 0.3s; }
+        .input-field:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2); }
+        .tab { border-bottom: 2px solid transparent; padding-bottom: 8px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; }
+        .tab:hover { color: var(--text-primary); }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 500; }
+
+        .log-container::-webkit-scrollbar, .table-container::-webkit-scrollbar { width: 8px; }
+        .log-container::-webkit-scrollbar-track, .table-container::-webkit-scrollbar-track { background: var(--card); }
+        .log-container::-webkit-scrollbar-thumb, .table-container::-webkit-scrollbar-thumb { background-color: var(--border); border-radius: 4px; }
+        @keyframes toast-in { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .toast-in { animation: toast-in 0.3s ease-out forwards; }
+        .file-input-label { cursor: pointer; }
+        .loader { width: 16px; height: 16px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite; }
+        .dark .loader { border: 2px solid #fff; border-bottom-color: transparent; }
+        .light .loader { border: 2px solid #18181b; border-bottom-color: transparent; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .btn { border-radius: 6px; transition: all 0.2s ease-in-out; outline: none; }
+        .btn:active { transform: scale(0.97); }
+        .btn:focus-visible { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary); }
+        .modal-overlay { background-color: rgba(9, 9, 11, 0.7); backdrop-filter: blur(4px); }
+        
+        .qr-container { position: relative; overflow: hidden; }
+        .gate {
+            content: '';
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            background-color: var(--input);
+            transition: transform 0.6s cubic-bezier(0.87, 0, 0.13, 1);
+            z-index: 10;
+        }
+        .gate-left { left: 0; transform-origin: left; }
+        .gate-right { right: 0; transform-origin: right; }
+        .qr-container.closing .gate-left { transform: scaleX(0); }
+        .qr-container.closing .gate-right { transform: scaleX(0); }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100">
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-3 w-96"></div>
+
+    <div class="flex flex-col min-h-screen">
+        
+        <header class="bg-card/80 backdrop-blur-sm border-b border-border sticky top-0 z-40">
+            <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-violet-400"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    <h1 class="text-xl font-bold text-text-primary">Disparador PRO</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <a href="https://www.instagram.com/furionnzxt" target="_blank" class="text-text-secondary hover:text-primary transition-colors">
+                        <i data-lucide="instagram"></i>
+                    </a>
+                    <label for="theme-switch" class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="theme-switch" class="sr-only peer">
+                        <div class="w-11 h-6 bg-zinc-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-violet-500"></div>
+                        <i data-lucide="sun" class="w-4 h-4 absolute top-1 left-1 text-yellow-300 transition-opacity opacity-0 peer-checked:opacity-100"></i>
+                        <i data-lucide="moon" class="w-4 h-4 absolute top-1 right-1 text-slate-300 transition-opacity opacity-100 peer-checked:opacity-0"></i>
+                    </label>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
+            <div class="border-b border-border mb-6">
+                <nav class="flex space-x-8 -mb-px" id="main-tabs">
+                    <a href="#connect" class="tab active flex items-center gap-2" data-tab="connect"><i data-lucide="plug-zap"></i><span>Conectar</span></a>
+                    <a href="#campaigns" class="tab flex items-center gap-2" data-tab="campaigns"><i data-lucide="archive"></i><span>Campanhas</span></a>
+                    <a href="#lead-generator" class="tab flex items-center gap-2" data-tab="lead-generator"><i data-lucide="users-2"></i><span>Gerador de Leads</span></a>
+                </nav>
+            </div>
+
+            <div id="tab-content">
+                <div id="connect-content" class="tab-pane active"><div id="sessions-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6"></div></div>
+                <div id="campaigns-content" class="tab-pane hidden">
+                     <div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-semibold">Gerenciador de Campanhas</h2>
+                        <button id="create-campaign-btn" class="btn bg-violet-600 hover:bg-violet-500 text-white font-bold py-2 px-4 flex items-center gap-2"><i data-lucide="plus"></i><span>Nova Campanha</span></button>
+                    </div>
+                    <div id="campaigns-list" class="space-y-4"></div>
+                </div>
+                <div id="lead-generator-content" class="tab-pane hidden">
+                     <div class="card p-6 max-w-4xl mx-auto">
+                        <h2 class="text-2xl font-semibold mb-6 flex items-center gap-3"><i data-lucide="users-2" class="text-violet-400"></i>Gerador de Leads de Grupos</h2>
+                        <div class="space-y-6">
+                             <div>
+                                <label for="leads-chip-selector" class="block text-sm font-medium text-text-secondary mb-2">1. Selecione o Chip Conectado</label>
+                                <select id="leads-chip-selector" class="input-field w-full p-2.5"></select>
+                            </div>
+                             <div>
+                                <label for="leads-group-selector" class="block text-sm font-medium text-text-secondary mb-2">2. Selecione o Grupo</label>
+                                <select id="leads-group-selector" class="input-field w-full p-2.5" disabled></select>
+                             </div>
+                             <div class="card bg-background/50 p-4">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 id="members-table-title" class="font-semibold">Membros do Grupo (0)</h3>
+                                    <div class="flex gap-2">
+                                        <button id="export-csv-btn" class="btn bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-3 flex items-center gap-2 text-sm" disabled>
+                                            <i data-lucide="file-spreadsheet"></i><span>Exportar CSV</span>
+                                        </button>
+                                         <button id="export-xlsx-btn" class="btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 flex items-center gap-2 text-sm" disabled>
+                                            <i data-lucide="file-spreadsheet"></i><span>Exportar XLSX</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="table-container h-80 overflow-y-auto">
+                                    <table class="w-full text-sm text-left">
+                                        <thead class="sticky top-0 bg-zinc-800">
+                                            <tr>
+                                                <th class="p-2">Número</th>
+                                                <th class="p-2">Admin</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="members-table-body">
+                                            <tr><td colspan="2" class="text-center p-4 text-text-secondary">Selecione um grupo para carregar os membros.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+         <footer class="text-center p-4 text-text-secondary text-sm">
+            Feito com Muito amor e carinho por <a href="https://www.encrypthost.com.br" target="_blank" class="text-violet-400 hover:underline">www.encrypthost.com.br</a>
+        </footer>
+    </div>
+    
+    <template id="session-template">
+        <div class="session-card card p-6 flex flex-col gap-6">
+            <h2 class="session-title text-2xl font-semibold text-text-primary border-b border-border pb-4 flex items-center gap-3"><i data-lucide="smartphone" class="w-6 h-6 text-violet-400"></i><span></span></h2>
+            <div class="grid grid-cols-1 gap-4 items-start">
+                <div class="qr-container w-full max-w-[250px] mx-auto aspect-square bg-input rounded-md flex items-center justify-center p-2 border border-border">
+                    <div class="gate gate-left"></div>
+                    <div class="gate gate-right"></div>
+                    <span class="qr-message text-text-secondary text-sm text-center flex flex-col items-center gap-2 z-20"></span>
+                    <img class="qr-code-img hidden w-full h-full object-contain rounded-sm z-20"/>
+                </div>
+                <p class="text-xs text-center text-text-secondary -mt-2">Se o QR code demorar a aparecer, a sessão pode já estar conectada.</p>
+                 <div class="status-display w-full h-full bg-input rounded-md flex items-center justify-center p-4 border border-border text-text-secondary">
+                    <span class="status-text"></span>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <div id="campaign-modal" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center hidden p-4">
+        <div class="card p-6 w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <h2 id="modal-title" class="text-xl font-semibold mb-4">Criar Nova Campanha</h2>
+            <div class="flex-grow overflow-y-auto pr-2 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label for="modal-campaign-name" class="block text-sm text-text-secondary mb-1">Nome da Campanha</label><input type="text" id="modal-campaign-name" class="input-field w-full p-2"></div>
+                    <div><label for="modal-chip-selector" class="block text-sm text-text-secondary mb-1">Chip para Disparo</label><select id="modal-chip-selector" class="input-field w-full p-2"></select></div>
+                </div>
+                <div>
+                    <label class="block text-sm text-text-secondary mb-2">Variações de Mensagem</label>
+                    <div id="message-variations-container" class="space-y-3"></div>
+                    <div class="mt-2 text-xs text-text-secondary">Quanto mais variações, menor o risco de banimento.</div>
+                    <button id="add-variation-btn" class="btn mt-3 bg-zinc-700 hover:bg-zinc-600 text-sm py-1 px-3">+ Adicionar Variação</button>
+                </div>
+                <div>
+                     <label class="block text-sm text-text-secondary mb-2">Contatos</label>
+                     <div class="card p-4 bg-background/50">
+                        <div class="flex items-center justify-between mb-2">
+                            <span id="contacts-counter" class="text-sm font-bold">0 / 600</span>
+                             <button id="import-contacts-btn" class="btn bg-sky-600 hover:bg-sky-500 text-sm py-1 px-3">Importar Contatos</button>
+                             <input type="file" id="contacts-file-input" class="hidden" accept=".csv, .xlsx">
+                        </div>
+                        <div id="contacts-list" class="h-40 overflow-y-auto bg-zinc-800 rounded-md p-2 font-mono text-xs space-y-1"></div>
+                     </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-4 mt-6 pt-4 border-t border-border">
+                <button id="modal-cancel-btn" class="btn bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-4">Cancelar</button>
+                <button id="modal-save-btn" class="btn bg-violet-600 hover:bg-violet-500 text-white font-bold py-2 px-4">Salvar Campanha</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="import-modal" class="modal-overlay fixed inset-0 z-[60] flex items-center justify-center hidden p-4">
+        <div class="card p-6 w-full max-w-lg">
+            <h2 class="text-xl font-semibold mb-1">Importar contatos</h2>
+            <p class="text-text-secondary text-sm mb-4">Mapeie as colunas do seu arquivo para os campos corretos.</p>
+            <div id="import-file-info" class="p-3 bg-zinc-800 rounded-md mb-4 flex items-center gap-3"><i data-lucide="file-text"></i><span class="font-mono text-sm"></span></div>
+            <div id="column-mapping-container" class="space-y-3"></div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button id="import-cancel-btn" class="btn bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-4">Cancelar</button>
+                <button id="import-confirm-btn" class="btn bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4">Confirmar Importação</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const SESSIONS = ['chip1', 'chip2', 'chip3'];
+        const BASE_URL = 'https://whatsapp-api-uylw.onrender.com';
+        const WS_URL = 'https://whatsapp-api-uylw.onrender.com';
+
+        const sessionsData = {};
+
+        const showToast = (message, type = 'info') => {
+            const container = document.getElementById('toast-container');
+            if(!container) return;
+            const toast = document.createElement('div');
+            const a_class = { success: 'bg-green-600', error: 'bg-red-600', info: 'bg-sky-600' };
+            const icons = { success: 'check-circle', error: 'x-circle', info: 'info' };
+            toast.className = `w-full ${a_class[type]} text-white p-4 rounded-md shadow-lg flex items-center gap-3 toast-in`;
+            toast.innerHTML = `<i data-lucide="${icons[type]}" class="w-6 h-6"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => toast.remove(), 5000);
+        };
+
+        const toggleButtonSpinner = (button, show) => {
+            if(!button) return;
+            const textSpan = button.querySelector('span');
+            if (show) {
+                button.disabled = true;
+                if (textSpan) textSpan.classList.add('hidden');
+                if (!button.querySelector('.loader')) {
+                    const loader = document.createElement('div');
+                    loader.className = 'loader';
+                    button.prepend(loader);
+                }
+            } else {
+                button.disabled = false;
+                if (textSpan) textSpan.classList.remove('hidden');
+                const loader = button.querySelector('.loader');
+                if (loader) loader.remove();
+            }
+        };
+
+        const switchTab = (tabId) => {
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
+            document.getElementById(`${tabId}-content`).classList.remove('hidden');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+        };
+
+        const ConnectionManager = {
+            init() {
+                SESSIONS.forEach(this.setupSessionCard);
+            },
+            setupSessionCard(sessionId) {
+                const card = document.getElementById('session-template').content.cloneNode(true).firstElementChild;
+                card.id = sessionId;
+                card.querySelector('.session-title span').textContent = `Chip ${sessionId.replace('chip', '')}`;
+                document.getElementById('sessions-grid').appendChild(card);
+                const dom = {
+                    qrContainer: card.querySelector('.qr-container'),
+                    qrMessage: card.querySelector('.qr-message'),
+                    qrCodeImg: card.querySelector('.qr-code-img'),
+                    statusDisplay: card.querySelector('.status-display'),
+                    statusText: card.querySelector('.status-text'),
+                };
+                const session = sessionsData[sessionId] = { dom, socket: null, isConnected: false, isDispatching: false };
+
+                const setStatus = (status, colorClass = 'text-text-secondary') => {
+                    dom.statusText.textContent = status;
+                    dom.statusDisplay.className = `status-display w-full h-full bg-input rounded-md flex items-center justify-center p-4 border border-border text-center ${colorClass}`;
+                };
+                
+                const handleConnectionSuccess = () => {
+                    session.isConnected = true;
+                    setStatus('Conectado', 'text-green-400');
+                    dom.qrContainer.classList.add('closing');
+                    setTimeout(() => {
+                        dom.qrCodeImg.classList.add('hidden');
+                        dom.qrMessage.innerHTML = '<i data-lucide="check-circle" class="w-10 h-10 text-green-400"></i><span class="text-sm">Conectado</span>';
+                        lucide.createIcons();
+                        dom.qrContainer.classList.remove('closing');
+                        dom.qrMessage.classList.remove('hidden');
+                    }, 600);
+                    LeadGeneratorManager.updateChipSelector();
+                };
+
+                const initSocket = async () => {
+                    if(session.socket) session.socket.disconnect();
+                    setStatus('Verificando...', 'text-yellow-400');
+                    dom.qrCodeImg.classList.add('hidden');
+                    dom.qrMessage.classList.remove('hidden');
+                    dom.qrMessage.innerHTML = '<div class="loader"></div><span class="text-sm mt-2">Verificando...</span>';
+                    
+                    session.socket = io(WS_URL, { transports: ["websocket"], forceNew: true });
+                    session.socket.on('connect', () => session.socket.emit('join', sessionId));
+                    session.socket.on('conectado', handleConnectionSuccess);
+                    session.socket.on('qr', (qrBase64) => {
+                        session.isConnected = false;
+                        dom.qrMessage.classList.add('hidden');
+                        dom.qrCodeImg.src = qrBase64;
+                        dom.qrCodeImg.classList.remove('hidden');
+                        setStatus('Aguardando leitura...', 'text-yellow-400');
+                    });
+                    session.socket.on('disconnect', () => {
+                        session.isConnected = false;
+                        setStatus('Desconectado', 'text-red-400');
+                        LeadGeneratorManager.updateChipSelector();
+                    });
+                    session.socket.on('status', (data) => {
+                        CampaignManager.updateCampaignProgress(sessionId, data);
+                    });
+                };
+                
+                initSocket();
+            }
+        };
+
+        const CampaignManager = {
+            campaigns: [],
+            currentCampaign: null,
+            tempContacts: [],
+            countdownTimers: {},
+            init() {
+                this.campaigns = JSON.parse(localStorage.getItem('whatsapp_campaigns_pro')) || [];
+                this.initEventListeners();
+                this.renderCampaignList();
+                this.startGlobalCountdownTimer();
+            },
+            initEventListeners() {
+                document.getElementById('create-campaign-btn').addEventListener('click', () => this.showCampaignModal());
+                document.getElementById('modal-cancel-btn').addEventListener('click', () => this.hideCampaignModal());
+                document.getElementById('modal-save-btn').addEventListener('click', () => this.saveCampaign());
+                document.getElementById('add-variation-btn').addEventListener('click', () => this.addMessageVariation());
+                document.getElementById('import-contacts-btn').addEventListener('click', () => document.getElementById('contacts-file-input').click());
+                document.getElementById('contacts-file-input').addEventListener('change', (e) => this.handleFileSelect(e));
+                document.getElementById('import-cancel-btn').addEventListener('click', () => this.hideImportModal());
+                document.getElementById('import-confirm-btn').addEventListener('click', () => this.processImport());
+            },
+            showCampaignModal(campaignToEdit = null) {
+                this.currentCampaign = campaignToEdit;
+                const modal = document.getElementById('campaign-modal');
+                modal.querySelector('#modal-title').textContent = campaignToEdit ? 'Editar Campanha' : 'Criar Nova Campanha';
+                document.getElementById('modal-campaign-name').value = campaignToEdit?.name || '';
+                document.getElementById('modal-chip-selector').value = campaignToEdit?.chip || SESSIONS[0];
+                document.getElementById('message-variations-container').innerHTML = '';
+                this.tempContacts = [...(campaignToEdit?.contacts || [])];
+                const variations = campaignToEdit?.variations || [{type: 'text', content: ''}];
+                variations.forEach(v => this.addMessageVariation(v.type, v.content));
+                this.updateContactsUI();
+                modal.classList.remove('hidden');
+            },
+            hideCampaignModal() {
+                 document.getElementById('campaign-modal').classList.add('hidden');
+                 this.currentCampaign = null;
+                 this.tempContacts = [];
+            },
+            addMessageVariation(type = 'text', content = '') {
+                const container = document.getElementById('message-variations-container');
+                const variationDiv = document.createElement('div');
+                variationDiv.className = 'p-3 bg-zinc-800 rounded-md border border-zinc-700 relative';
+                variationDiv.innerHTML = `
+                    <button class="remove-variation-btn absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">&times;</button>
+                    ${type === 'text'
+                        ? `<textarea class="input-field w-full p-2 text-sm variation-content bg-zinc-700" rows="2" placeholder="Digite sua mensagem...">${content}</textarea>`
+                        : `<div class="text-sm text-zinc-400 variation-content" data-content="${content}">Envio de imagem não suportado.</div>`
+                    }
+                `;
+                variationDiv.querySelector('.remove-variation-btn').addEventListener('click', () => variationDiv.remove());
+                container.appendChild(variationDiv);
+            },
+            handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        if (json.length < 1) { showToast('Arquivo vazio ou inválido.', 'error'); return; }
+                        const headers = json[0];
+                        const records = json.slice(1).map(row => {
+                            let record = {};
+                            headers.forEach((header, i) => record[header] = row[i]);
+                            return record;
+                        });
+                        this.showImportModal(file, headers, records);
+                    } catch(err) {
+                        showToast('Erro ao ler o arquivo. Verifique o formato.', 'error');
+                        console.error("File read error:", err);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+                event.target.value = '';
+            },
+            showImportModal(file, headers, records) {
+                document.getElementById('import-file-info').querySelector('span').textContent = `${file.name}`;
+                const mappingContainer = document.getElementById('column-mapping-container');
+                mappingContainer.innerHTML = '';
+                const fields = {'Nome do contato': 'name', 'Número do contato': 'number'};
+                const optionsHtml = headers.map(h => `<option value="${h}">${h}</option>`).join('');
+                Object.entries(fields).forEach(([label, key]) => {
+                    mappingContainer.innerHTML += `
+                        <div class="flex items-center gap-4"><label class="w-1/3 text-sm text-text-secondary">${label}</label>
+                        <select data-field="${key}" class="input-field w-2/3 p-2"><option value="">Selecione a coluna</option>${optionsHtml}</select></div>`;
+                });
+                this._tempRecords = records;
+                document.getElementById('import-modal').classList.remove('hidden');
+            },
+            hideImportModal() {
+                document.getElementById('import-modal').classList.add('hidden');
+            },
+            processImport() {
+                const nameCol = document.querySelector('select[data-field="name"]').value;
+                const numberCol = document.querySelector('select[data-field="number"]').value;
+                if(!numberCol) { showToast('Selecione a coluna do número.', 'error'); return; }
+                const newContacts = this._tempRecords.map(r => ({
+                    name: r[nameCol] || '',
+                    number: String(r[numberCol] || '').replace(/\D/g, '')
+                })).filter(c => c.number);
+                this.tempContacts.push(...newContacts);
+                this.updateContactsUI();
+                showToast(`${newContacts.length} contatos importados.`, 'success');
+                this.hideImportModal();
+            },
+            updateContactsUI() {
+                const listEl = document.getElementById('contacts-list');
+                const counterEl = document.getElementById('contacts-counter');
+                listEl.innerHTML = this.tempContacts.map(c => `<div>${c.number} (${c.name || 'Sem nome'})</div>`).join('');
+                counterEl.textContent = `${this.tempContacts.length} / 600`;
+                counterEl.className = `text-sm font-bold ${this.tempContacts.length > 600 ? 'text-red-400' : ''}`;
+            },
+            saveCampaign() {
+                const variations = Array.from(document.querySelectorAll('#message-variations-container > div')).map(div => ({
+                    type: div.querySelector('.variation-content').tagName === 'TEXTAREA' ? 'text' : 'image',
+                    content: div.querySelector('.variation-content').value || div.querySelector('.variation-content').dataset.content
+                }));
+                const campaignData = {
+                    id: this.currentCampaign?.id || Date.now(),
+                    name: document.getElementById('modal-campaign-name').value || 'Campanha Sem Nome',
+                    chip: document.getElementById('modal-chip-selector').value,
+                    variations, contacts: this.tempContacts, status: this.currentCampaign?.status || 'Aguardando',
+                    sent: this.currentCampaign?.sent || 0, countdown: null
+                };
+                if (this.currentCampaign) {
+                    const index = this.campaigns.findIndex(c => c.id === this.currentCampaign.id);
+                    this.campaigns[index] = campaignData;
+                } else { this.campaigns.push(campaignData); }
+                localStorage.setItem('whatsapp_campaigns_pro', JSON.stringify(this.campaigns));
+                this.renderCampaignList();
+                this.hideCampaignModal();
+            },
+            deleteCampaign(id) {
+                if(this.countdownTimers[id]) clearInterval(this.countdownTimers[id]);
+                delete this.countdownTimers[id];
+                this.campaigns = this.campaigns.filter(c => c.id !== id);
+                localStorage.setItem('whatsapp_campaigns_pro', JSON.stringify(this.campaigns));
+                this.renderCampaignList();
+            },
+            async controlCampaign(id, action) {
+                const campaignIndex = this.campaigns.findIndex(c => c.id === id);
+                if (campaignIndex === -1) return;
+                const campaign = this.campaigns[campaignIndex];
+                const chipId = campaign.chip;
+
+                if (action === 'start' && (!sessionsData[chipId] || !sessionsData[chipId].isConnected)) {
+                    showToast(`Chip ${chipId.replace('chip', '')} não está conectado.`, 'error'); return;
+                }
+                if (action === 'start' && sessionsData[chipId].isDispatching) {
+                    showToast(`Chip ${chipId.replace('chip', '')} já está em uso.`, 'error'); return;
+                }
+                
+                const card = document.getElementById(`campaign-${id}`);
+                const controlBtn = card.querySelector('.control-campaign-btn');
+                toggleButtonSpinner(controlBtn, true);
+
+                try {
+                    let response;
+                    if (action === 'start') {
+                        sessionsData[chipId].isDispatching = true;
+                        campaign.status = 'Disparando';
+                        campaign.sent = 0;
+                        response = await fetch(`${BASE_URL}/disparos?session=${chipId}`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ numeros: campaign.contacts.map(c=>c.number), mensagens: campaign.variations.map(v=>v.content) }),
+                        });
+                    } else if (action === 'pause') {
+                        response = await fetch(`${BASE_URL}/pausar?session=${chipId}`, { method: 'POST' });
+                        if(response.ok) campaign.status = 'Pausado';
+                    } else if (action === 'continue') {
+                        response = await fetch(`${BASE_URL}/continuar?session=${chipId}`, { method: 'POST' });
+                        if(response.ok) campaign.status = 'Disparando';
+                    }
+
+                    if (!response.ok) throw new Error(await response.text());
+                    showToast(`Campanha "${campaign.name}" ${action === 'start' ? 'iniciada' : (action === 'pause' ? 'pausada' : 'retomada')}!`, 'success');
+                } catch (error) {
+                    showToast(`Erro: ${error.message}`, 'error');
+                    campaign.status = 'Erro';
+                    sessionsData[chipId].isDispatching = false;
+                } finally {
+                    toggleButtonSpinner(controlBtn, false);
+                    this.renderCampaignList();
+                }
+            },
+            resetCountdown(campaignId, delay){
+                const campaign = this.campaigns.find(c => c.id === campaignId);
+                if(campaign) campaign.countdown = delay;
+            },
+            startGlobalCountdownTimer() {
+                setInterval(() => {
+                    this.campaigns.forEach(c => {
+                        if (c.status === 'Disparando' && c.countdown > 0) {
+                            c.countdown--;
+                            const el = document.querySelector(`#campaign-${c.id} .countdown`);
+                            if (el) el.textContent = `${c.countdown}s`;
+                        }
+                    });
+                }, 1000);
+            },
+            updateCampaignProgress(chipId, statusData) {
+                const runningCampaign = this.campaigns.find(c => c.chip === chipId && c.status === 'Disparando');
+                if (!runningCampaign) return;
+                runningCampaign.sent++;
+                if (runningCampaign.sent >= runningCampaign.contacts.length) {
+                    runningCampaign.status = 'Concluída';
+                    sessionsData[chipId].isDispatching = false;
+                    runningCampaign.countdown = 0;
+                } else {
+                    this.resetCountdown(runningCampaign.id, statusData.nextDelay);
+                }
+                this.renderCampaignList();
+            },
+            renderCampaignList() {
+                const listEl = document.getElementById('campaigns-list');
+                listEl.innerHTML = '';
+                if(this.campaigns.length === 0) {
+                    listEl.innerHTML = `<div class="text-center text-zinc-500 py-8 card">Nenhuma campanha criada.</div>`;
+                    return;
+                }
+                this.campaigns.forEach(c => {
+                    const statusColors = { 'Aguardando': 'text-sky-400', 'Disparando': 'text-yellow-400', 'Pausado': 'text-zinc-400', 'Concluída': 'text-green-400', 'Erro': 'text-red-400' };
+                    let controlBtnHtml;
+                    if (c.status === 'Disparando') {
+                        controlBtnHtml = `<button data-action="pause" class="control-campaign-btn btn bg-yellow-600 hover:bg-yellow-700 p-2"><i data-lucide="pause"></i></button>`;
+                    } else if (c.status === 'Aguardando' || c.status === 'Pausado') {
+                         const action = c.status === 'Aguardando' ? 'start' : 'continue';
+                        controlBtnHtml = `<button data-action="${action}" class="control-campaign-btn btn bg-green-600 hover:bg-green-700 p-2"><i data-lucide="play"></i></button>`;
+                    } else {
+                        controlBtnHtml = `<button disabled class="btn bg-zinc-700 p-2 opacity-50"><i data-lucide="check-check"></i></button>`;
+                    }
+
+                    const campaignCard = document.createElement('div');
+                    campaignCard.className = 'card p-4';
+                    campaignCard.id = `campaign-${c.id}`;
+                    campaignCard.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-bold text-lg">${c.name}</p>
+                                <p class="text-sm text-text-secondary">Chip: ${c.chip.replace('chip','')} | ${c.contacts.length} contatos</p>
+                            </div>
+                            <div class="flex gap-2">
+                               ${controlBtnHtml}
+                               <button class="delete-campaign-btn btn bg-red-600 hover:bg-red-700 p-2"><i data-lucide="trash"></i></button>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                             <div class="flex justify-between text-sm mb-1">
+                                <span class="font-semibold ${statusColors[c.status] || 'text-zinc-400'}">${c.status}</span>
+                                <span class="campaign-progress font-mono">${c.sent} / ${c.contacts.length}</span>
+                             </div>
+                             <div class="w-full bg-zinc-700 rounded-full h-2">
+                                <div class="campaign-progress-bar bg-violet-500 h-2 rounded-full transition-all duration-500" style="width: ${c.contacts.length > 0 ? (c.sent/c.contacts.length)*100 : 0}%"></div>
+                             </div>
+                             <div class="text-xs text-text-secondary mt-1 text-right">Próximo envio em: <span class="countdown">${c.countdown > 0 ? c.countdown + 's' : '--s'}</span></div>
+                        </div>
+                    `;
+                    campaignCard.querySelector('.control-campaign-btn')?.addEventListener('click', (e) => this.controlCampaign(c.id, e.currentTarget.dataset.action));
+                    campaignCard.querySelector('.delete-campaign-btn').addEventListener('click', () => this.deleteCampaign(c.id));
+                    listEl.appendChild(campaignCard);
+                });
+                 lucide.createIcons();
+            }
+        };
+
+        const LeadGeneratorManager = {
+            loadedMembers: [],
+            init() {
+                this.chipSelector = document.getElementById('leads-chip-selector');
+                this.groupSelector = document.getElementById('leads-group-selector');
+                this.membersTableBody = document.getElementById('members-table-body');
+                this.membersTableTitle = document.getElementById('members-table-title');
+                this.exportCsvBtn = document.getElementById('export-csv-btn');
+                this.exportXlsxBtn = document.getElementById('export-xlsx-btn');
+                
+                this.chipSelector.addEventListener('change', () => this.loadGroups());
+                this.groupSelector.addEventListener('change', () => this.loadMembers());
+                this.exportCsvBtn.addEventListener('click', () => this.export('csv'));
+                this.exportXlsxBtn.addEventListener('click', () => this.export('xlsx'));
+                this.updateChipSelector();
+            },
+            updateChipSelector() {
+                this.chipSelector.innerHTML = '<option value="">Selecione um Chip</option>';
+                SESSIONS.forEach(sid => {
+                    if (sessionsData[sid] && sessionsData[sid].isConnected) {
+                        this.chipSelector.innerHTML += `<option value="${sid}">Chip ${sid.replace('chip','')}</option>`;
+                    }
+                });
+            },
+            async loadGroups() {
+                const chipId = this.chipSelector.value;
+                this.groupSelector.innerHTML = '<option>Carregando...</option>';
+                this.groupSelector.disabled = true;
+                this.clearMembers();
+                if(!chipId) { this.groupSelector.innerHTML = ''; return; }
+
+                try {
+                    const response = await fetch(`${BASE_URL}/${chipId}/grupos`);
+                    if(!response.ok) throw new Error('Falha ao buscar grupos');
+                    const data = await response.json();
+                    
+                    this.groupSelector.innerHTML = '<option value="">Selecione um Grupo</option>';
+                    data.grupos.forEach(g => {
+                        this.groupSelector.innerHTML += `<option value="${g.id}">${g.nome || 'Grupo sem nome'}</option>`;
+                    });
+                    this.groupSelector.disabled = false;
+                } catch (error) {
+                    showToast('Erro ao carregar grupos.', 'error');
+                    this.groupSelector.innerHTML = '<option>Erro ao carregar</option>';
+                }
+            },
+            async loadMembers() {
+                const chipId = this.chipSelector.value;
+                const groupId = this.groupSelector.value;
+                this.clearMembers();
+                if(!groupId) return;
+
+                this.membersTableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4"><div class="loader mx-auto"></div></td></tr>';
+
+                try {
+                    const response = await fetch(`${BASE_URL}/${chipId}/grupo/${groupId}/membros`);
+                     if(!response.ok) throw new Error('Falha ao buscar membros');
+                    const data = await response.json();
+                    this.loadedMembers = data.membros;
+                    this.membersTableTitle.textContent = `Membros do Grupo (${data.quantidade})`;
+                    this.membersTableBody.innerHTML = '';
+                    data.membros.forEach(m => {
+                        this.membersTableBody.innerHTML += `
+                            <tr class="border-b border-border">
+                                <td class="p-2">${m.id.split('@')[0]}</td>
+                                <td class="p-2">${m.admin ? '<span class="text-green-400">Sim</span>' : 'Não'}</td>
+                            </tr>
+                        `;
+                    });
+                    this.exportCsvBtn.disabled = false;
+                    this.exportXlsxBtn.disabled = false;
+                } catch(error) {
+                     showToast('Erro ao carregar membros.', 'error');
+                     this.membersTableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4 text-red-400">Erro ao carregar.</td></tr>';
+                }
+            },
+            clearMembers() {
+                this.loadedMembers = [];
+                this.membersTableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4 text-text-secondary">Selecione um grupo para carregar os membros.</td></tr>';
+                this.membersTableTitle.textContent = 'Membros do Grupo (0)';
+                this.exportCsvBtn.disabled = true;
+                this.exportXlsxBtn.disabled = true;
+            },
+            export(format) {
+                if (this.loadedMembers.length === 0) return;
+                const data = this.loadedMembers.map(m => ({
+                    numero: m.id.split('@')[0],
+                    admin: m.admin ? 'sim' : 'nao'
+                }));
+                const worksheet = XLSX.utils.json_to_sheet(data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Membros");
+                
+                const filename = `membros_${this.groupSelector.options[this.groupSelector.selectedIndex].text.replace(/\s/g,'_')}.${format}`;
+                
+                if (format === 'xlsx') {
+                    XLSX.writeFile(workbook, filename);
+                } else {
+                    const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
+                    const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement("a");
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", filename);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+        };
+
+        const ThemeManager = {
+            init() {
+                this.switch = document.getElementById('theme-switch');
+                this.switch.addEventListener('change', this.toggleTheme.bind(this));
+                if (localStorage.getItem('theme') === 'light') {
+                    this.switch.checked = true;
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.classList.add('light');
+                }
+            },
+            toggleTheme() {
+                if (this.switch.checked) {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.classList.add('light');
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
+                    localStorage.setItem('theme', 'dark');
+                }
+            }
+        };
+
+        ConnectionManager.init();
+        CampaignManager.init();
+        LeadGeneratorManager.init();
+        ThemeManager.init();
+        document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchTab(e.currentTarget.dataset.tab);
+        }));
+        
+        const chipSelectorModal = document.getElementById('modal-chip-selector');
+        SESSIONS.forEach(s => chipSelectorModal.innerHTML += `<option value="${s}">${s.replace('chip','Chip ')}</option>`);
+
+        lucide.createIcons();
     });
-  </script></body></html>`);
-});
-
-app.post('/upload', uploads.single('file'), (req, res) => {
-  const session = req.query.session;
-  if (!session || !SESSIONS.includes(session)) {
-    return res.status(400).send('Sessão inválida');
-  }
-  const file = req.file;
-  const content = fs.readFileSync(file.path);
-  const records = parse(content, { columns: true, skip_empty_lines: true });
-  numbers[session] = records.map(r => normalizarNumero(r.numero || r.number));
-  fs.unlinkSync(file.path);
-  res.send('Números carregados com sucesso');
-});
-
-app.post('/disparos', async (req, res) => {
-  const session = req.query.session;
-  const { numeros, mensagens } = req.body;
-
-  if (!session || !SESSIONS.includes(session)) return res.status(400).send('Sessão inválida');
-  if (!mensagens || !Array.isArray(mensagens) || mensagens.length === 0) return res.status(400).send('Mensagens obrigatórias');
-  if (!numeros || numeros.length === 0) return res.status(400).send('Números obrigatórios');
-  if (numeros.length > 600) return res.status(400).send('O limite é 600 números');
-
-  const sock = sockInstances[session];
-  if (!sock) return res.status(500).send('Sessão não iniciada');
-
-  res.send('Disparo iniciado');
-
-  for (let i = 0; i < numeros.length; i++) {
-    const numero = normalizarNumero(numeros[i]);
-    const mensagem = mensagens[Math.floor(Math.random() * mensagens.length)];
-    try {
-      await sock.sendMessage(`${numero}@s.whatsapp.net`, { text: mensagem });
-      clients[session]?.emit('status', { numero, mensagem, status: 'enviado', index: i });
-    } catch (e) {
-      clients[session]?.emit('status', { numero, mensagem, status: 'erro', erro: e.message });
-    }
-    const delay = Math.floor(Math.random() * (125 - 60 + 1) + 60) * 1000;
-    await new Promise(r => setTimeout(r, delay));
-  }
-});
-
-io.on('connection', socket => {
-  socket.on('join', session => {
-    if (SESSIONS.includes(session)) {
-      sockets[session] = socket;
-      clients[session] = socket;
-    }
-  });
-});
-
-server.listen(3000, () => console.log('Servidor iniciado na porta 3000'));
+    </script>
+</body>
+</html>
