@@ -26,46 +26,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Light Theme Variables */
-        .light {
-            --background: #f4f4f5; /* zinc-100 */
-            --card: #ffffff;       /* white */
-            --input: #f4f4f5;      /* zinc-100 */
-            --border: #e4e4e7;     /* zinc-200 */
-            --text-primary: #18181b; /* zinc-900 */
-            --text-secondary: #71717a; /* zinc-500 */
-        }
-
-        /* Dark Theme Variables */
-        .dark {
+        :root {
             --background: #09090b; /* zinc-950 */
-            --card: #18181b;       /* zinc-900 */
-            --input: #27272a;      /* zinc-800 */
-            --border: #3f3f46;     /* zinc-700 */
+            --card: #18181b; /* zinc-900 */
+            --input: #27272a; /* zinc-800 */
+            --border: #3f3f46; /* zinc-700 */
             --text-primary: #fafafa; /* zinc-50 */
             --text-secondary: #a1a1aa; /* zinc-400 */
-        }
-
-        :root {
             --primary: #a78bfa; /* violet-400 */
         }
-
         body {
             font-family: 'Inter', sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             background-color: var(--background);
             color: var(--text-primary);
-            transition: background-color 0.3s, color 0.3s;
         }
-
-        .card { background-color: var(--card); border: 1px solid var(--border); border-radius: 8px; transition: background-color 0.3s, border-color 0.3s; }
-        .input-field { background-color: var(--input); border: 1px solid var(--border); border-radius: 6px; outline: none; color: var(--text-primary); transition: background-color 0.3s, border-color 0.3s; }
-        .input-field:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2); }
-        .tab { border-bottom: 2px solid transparent; padding-bottom: 8px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; }
-        .tab:hover { color: var(--text-primary); }
-        .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 500; }
-
         .log-container::-webkit-scrollbar, .table-container::-webkit-scrollbar { width: 8px; }
         .log-container::-webkit-scrollbar-track, .table-container::-webkit-scrollbar-track { background: var(--card); }
         .log-container::-webkit-scrollbar-thumb, .table-container::-webkit-scrollbar-thumb { background-color: var(--border); border-radius: 4px; }
@@ -73,14 +49,19 @@
         .toast-in { animation: toast-in 0.3s ease-out forwards; }
         .file-input-label { cursor: pointer; }
         .loader { width: 16px; height: 16px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite; }
-        .dark .loader { border: 2px solid #fff; border-bottom-color: transparent; }
-        .light .loader { border: 2px solid #18181b; border-bottom-color: transparent; }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .btn { border-radius: 6px; transition: all 0.2s ease-in-out; outline: none; }
         .btn:active { transform: scale(0.97); }
         .btn:focus-visible { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary); }
+        .card { background-color: var(--card); border: 1px solid var(--border); border-radius: 8px; }
+        .input-field { background-color: var(--input); border: 1px solid var(--border); border-radius: 6px; outline: none; color: var(--text-primary); }
+        .input-field:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2); }
+        .tab { border-bottom: 2px solid transparent; padding-bottom: 8px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; }
+        .tab:hover { color: var(--text-primary); }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 500; }
         .modal-overlay { background-color: rgba(9, 9, 11, 0.7); backdrop-filter: blur(4px); }
         
+        /* Animação de Portão */
         .qr-container { position: relative; overflow: hidden; }
         .gate {
             content: '';
@@ -104,28 +85,12 @@
 
     <div class="flex flex-col min-h-screen">
         
-        <header class="bg-card/80 backdrop-blur-sm border-b border-border sticky top-0 z-40">
-            <div class="container mx-auto px-4 py-3 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-violet-400"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                    <h1 class="text-xl font-bold text-text-primary">Disparador PRO</h1>
-                </div>
-                <div class="flex items-center gap-4">
-                    <a href="https://www.instagram.com/furionnzxt" target="_blank" class="text-text-secondary hover:text-primary transition-colors">
-                        <i data-lucide="instagram"></i>
-                    </a>
-                    <label for="theme-switch" class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="theme-switch" class="sr-only peer">
-                        <div class="w-11 h-6 bg-zinc-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-violet-500"></div>
-                        <i data-lucide="sun" class="w-4 h-4 absolute top-1 left-1 text-yellow-300 transition-opacity opacity-0 peer-checked:opacity-100"></i>
-                        <i data-lucide="moon" class="w-4 h-4 absolute top-1 right-1 text-slate-300 transition-opacity opacity-100 peer-checked:opacity-0"></i>
-                    </label>
-                </div>
-            </div>
+        <header class="bg-zinc-950/80 backdrop-blur-sm border-b border-zinc-800 sticky top-0 z-40">
+            <div class="container mx-auto px-4 py-3"><div class="flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-violet-400"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg><h1 class="text-xl font-bold text-zinc-100">Disparador PRO</h1></div></div>
         </header>
 
         <main class="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
-            <div class="border-b border-border mb-6">
+            <div class="border-b border-zinc-800 mb-6">
                 <nav class="flex space-x-8 -mb-px" id="main-tabs">
                     <a href="#connect" class="tab active flex items-center gap-2" data-tab="connect"><i data-lucide="plug-zap"></i><span>Conectar</span></a>
                     <a href="#campaigns" class="tab flex items-center gap-2" data-tab="campaigns"><i data-lucide="archive"></i><span>Campanhas</span></a>
@@ -146,14 +111,14 @@
                         <h2 class="text-2xl font-semibold mb-6 flex items-center gap-3"><i data-lucide="users-2" class="text-violet-400"></i>Gerador de Leads de Grupos</h2>
                         <div class="space-y-6">
                              <div>
-                                <label for="leads-chip-selector" class="block text-sm font-medium text-text-secondary mb-2">1. Selecione o Chip Conectado</label>
+                                <label for="leads-chip-selector" class="block text-sm font-medium text-zinc-400 mb-2">1. Selecione o Chip Conectado</label>
                                 <select id="leads-chip-selector" class="input-field w-full p-2.5"></select>
                             </div>
                              <div>
-                                <label for="leads-group-selector" class="block text-sm font-medium text-text-secondary mb-2">2. Selecione o Grupo</label>
+                                <label for="leads-group-selector" class="block text-sm font-medium text-zinc-400 mb-2">2. Selecione o Grupo</label>
                                 <select id="leads-group-selector" class="input-field w-full p-2.5" disabled></select>
                              </div>
-                             <div class="card bg-background/50 p-4">
+                             <div class="card bg-zinc-900/50 p-4">
                                 <div class="flex justify-between items-center mb-4">
                                     <h3 id="members-table-title" class="font-semibold">Membros do Grupo (0)</h3>
                                     <div class="flex gap-2">
@@ -174,7 +139,7 @@
                                             </tr>
                                         </thead>
                                         <tbody id="members-table-body">
-                                            <tr><td colspan="2" class="text-center p-4 text-text-secondary">Selecione um grupo para carregar os membros.</td></tr>
+                                            <tr><td colspan="2" class="text-center p-4 text-zinc-500">Selecione um grupo para carregar os membros.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -184,23 +149,23 @@
                 </div>
             </div>
         </main>
-         <footer class="text-center p-4 text-text-secondary text-sm">
+         <footer class="text-center p-4 text-zinc-500 text-sm">
             Feito com Muito amor e carinho por <a href="https://www.encrypthost.com.br" target="_blank" class="text-violet-400 hover:underline">www.encrypthost.com.br</a>
         </footer>
     </div>
     
     <template id="session-template">
         <div class="session-card card p-6 flex flex-col gap-6">
-            <h2 class="session-title text-2xl font-semibold text-text-primary border-b border-border pb-4 flex items-center gap-3"><i data-lucide="smartphone" class="w-6 h-6 text-violet-400"></i><span></span></h2>
+            <h2 class="session-title text-2xl font-semibold text-zinc-100 border-b border-zinc-800 pb-4 flex items-center gap-3"><i data-lucide="smartphone" class="w-6 h-6 text-violet-400"></i><span></span></h2>
             <div class="grid grid-cols-1 gap-4 items-start">
-                <div class="qr-container w-full max-w-[250px] mx-auto aspect-square bg-input rounded-md flex items-center justify-center p-2 border border-border">
+                <div class="qr-container w-full max-w-[250px] mx-auto aspect-square bg-zinc-900 rounded-md flex items-center justify-center p-2 border border-zinc-700">
                     <div class="gate gate-left"></div>
                     <div class="gate gate-right"></div>
-                    <span class="qr-message text-text-secondary text-sm text-center flex flex-col items-center gap-2 z-20"></span>
+                    <span class="qr-message text-zinc-500 text-sm text-center flex flex-col items-center gap-2 z-20"></span>
                     <img class="qr-code-img hidden w-full h-full object-contain rounded-sm z-20"/>
                 </div>
-                <p class="text-xs text-center text-text-secondary -mt-2">Se o QR code demorar a aparecer, a sessão pode já estar conectada.</p>
-                 <div class="status-display w-full h-full bg-input rounded-md flex items-center justify-center p-4 border border-border text-text-secondary">
+                <p class="text-xs text-center text-zinc-500 -mt-2">Se o QR code demorar a aparecer, a sessão pode já estar conectada.</p>
+                 <div class="status-display w-full h-full bg-zinc-900 rounded-md flex items-center justify-center p-4 border border-zinc-700 text-zinc-400">
                     <span class="status-text"></span>
                 </div>
             </div>
@@ -212,18 +177,18 @@
             <h2 id="modal-title" class="text-xl font-semibold mb-4">Criar Nova Campanha</h2>
             <div class="flex-grow overflow-y-auto pr-2 space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label for="modal-campaign-name" class="block text-sm text-text-secondary mb-1">Nome da Campanha</label><input type="text" id="modal-campaign-name" class="input-field w-full p-2"></div>
-                    <div><label for="modal-chip-selector" class="block text-sm text-text-secondary mb-1">Chip para Disparo</label><select id="modal-chip-selector" class="input-field w-full p-2"></select></div>
+                    <div><label for="modal-campaign-name" class="block text-sm text-zinc-400 mb-1">Nome da Campanha</label><input type="text" id="modal-campaign-name" class="input-field w-full p-2"></div>
+                    <div><label for="modal-chip-selector" class="block text-sm text-zinc-400 mb-1">Chip para Disparo</label><select id="modal-chip-selector" class="input-field w-full p-2"></select></div>
                 </div>
                 <div>
-                    <label class="block text-sm text-text-secondary mb-2">Variações de Mensagem</label>
+                    <label class="block text-sm text-zinc-400 mb-2">Variações de Mensagem</label>
                     <div id="message-variations-container" class="space-y-3"></div>
-                    <div class="mt-2 text-xs text-text-secondary">Quanto mais variações, menor o risco de banimento.</div>
+                    <div class="mt-2 text-xs text-zinc-500">Quanto mais variações, menor o risco de banimento.</div>
                     <button id="add-variation-btn" class="btn mt-3 bg-zinc-700 hover:bg-zinc-600 text-sm py-1 px-3">+ Adicionar Variação</button>
                 </div>
                 <div>
-                     <label class="block text-sm text-text-secondary mb-2">Contatos</label>
-                     <div class="card p-4 bg-background/50">
+                     <label class="block text-sm text-zinc-400 mb-2">Contatos</label>
+                     <div class="card p-4 bg-zinc-900/50">
                         <div class="flex items-center justify-between mb-2">
                             <span id="contacts-counter" class="text-sm font-bold">0 / 600</span>
                              <button id="import-contacts-btn" class="btn bg-sky-600 hover:bg-sky-500 text-sm py-1 px-3">Importar Contatos</button>
@@ -233,7 +198,7 @@
                      </div>
                 </div>
             </div>
-            <div class="flex justify-end gap-4 mt-6 pt-4 border-t border-border">
+            <div class="flex justify-end gap-4 mt-6 pt-4 border-t border-zinc-800">
                 <button id="modal-cancel-btn" class="btn bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 px-4">Cancelar</button>
                 <button id="modal-save-btn" class="btn bg-violet-600 hover:bg-violet-500 text-white font-bold py-2 px-4">Salvar Campanha</button>
             </div>
@@ -243,7 +208,7 @@
     <div id="import-modal" class="modal-overlay fixed inset-0 z-[60] flex items-center justify-center hidden p-4">
         <div class="card p-6 w-full max-w-lg">
             <h2 class="text-xl font-semibold mb-1">Importar contatos</h2>
-            <p class="text-text-secondary text-sm mb-4">Mapeie as colunas do seu arquivo para os campos corretos.</p>
+            <p class="text-zinc-400 text-sm mb-4">Mapeie as colunas do seu arquivo para os campos corretos.</p>
             <div id="import-file-info" class="p-3 bg-zinc-800 rounded-md mb-4 flex items-center gap-3"><i data-lucide="file-text"></i><span class="font-mono text-sm"></span></div>
             <div id="column-mapping-container" class="space-y-3"></div>
             <div class="flex justify-end gap-4 mt-6">
@@ -299,6 +264,32 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
         };
+        
+        const normalizeBrazilianNumber = (numberStr) => {
+            if (!numberStr) return null;
+            let cleanNumber = String(numberStr).replace(/\D/g, '');
+
+            if (cleanNumber.length === 13 && cleanNumber.startsWith('55')) {
+                const ninthDigit = cleanNumber.substring(4, 5);
+                if (ninthDigit === '9') {
+                    return cleanNumber.substring(0, 4) + cleanNumber.substring(5);
+                }
+            }
+            if (cleanNumber.length === 11) {
+                 const ninthDigit = cleanNumber.substring(2, 3);
+                 if (ninthDigit === '9') {
+                     return `55${cleanNumber.substring(0, 2)}${cleanNumber.substring(3)}`;
+                 }
+            }
+            if (cleanNumber.length === 10) {
+                return `55${cleanNumber}`;
+            }
+            if (cleanNumber.length === 12 && cleanNumber.startsWith('55')) {
+                return cleanNumber;
+            }
+            return null;
+        };
+
 
         const ConnectionManager = {
             init() {
@@ -318,9 +309,9 @@
                 };
                 const session = sessionsData[sessionId] = { dom, socket: null, isConnected: false, isDispatching: false };
 
-                const setStatus = (status, colorClass = 'text-text-secondary') => {
+                const setStatus = (status, colorClass = 'text-zinc-400') => {
                     dom.statusText.textContent = status;
-                    dom.statusDisplay.className = `status-display w-full h-full bg-input rounded-md flex items-center justify-center p-4 border border-border text-center ${colorClass}`;
+                    dom.statusDisplay.className = `status-display w-full h-full bg-zinc-900 rounded-md flex items-center justify-center p-4 border border-zinc-700 text-center ${colorClass}`;
                 };
                 
                 const handleConnectionSuccess = () => {
@@ -339,10 +330,10 @@
 
                 const initSocket = async () => {
                     if(session.socket) session.socket.disconnect();
-                    setStatus('Verificando...', 'text-yellow-400');
+                    setStatus('Gerando QR Code...', 'text-yellow-400');
                     dom.qrCodeImg.classList.add('hidden');
                     dom.qrMessage.classList.remove('hidden');
-                    dom.qrMessage.innerHTML = '<div class="loader"></div><span class="text-sm mt-2">Verificando...</span>';
+                    dom.qrMessage.innerHTML = '<div class="loader"></div><span class="text-sm mt-2">Gerando QR Code...</span>';
                     
                     session.socket = io(WS_URL, { transports: ["websocket"], forceNew: true });
                     session.socket.on('connect', () => session.socket.emit('join', sessionId));
@@ -362,6 +353,16 @@
                     session.socket.on('status', (data) => {
                         CampaignManager.updateCampaignProgress(sessionId, data);
                     });
+
+                    try {
+                        const response = await fetch(`${BASE_URL}/qr?session=${sessionId}`);
+                        const text = await response.text();
+                        if (text.includes("já está conectado")) {
+                             handleConnectionSuccess();
+                        }
+                    } catch (e) {
+                         console.warn(`Fetch to /qr for ${sessionId} might be blocked by CORS, relying on socket events.`);
+                    }
                 };
                 
                 initSocket();
@@ -469,10 +470,13 @@
                 const nameCol = document.querySelector('select[data-field="name"]').value;
                 const numberCol = document.querySelector('select[data-field="number"]').value;
                 if(!numberCol) { showToast('Selecione a coluna do número.', 'error'); return; }
-                const newContacts = this._tempRecords.map(r => ({
-                    name: r[nameCol] || '',
-                    number: String(r[numberCol] || '').replace(/\D/g, '')
-                })).filter(c => c.number);
+                const newContacts = this._tempRecords
+                    .map(r => ({
+                        name: r[nameCol] || '',
+                        number: normalizeBrazilianNumber(r[numberCol])
+                    }))
+                    .filter(c => c.number);
+                
                 this.tempContacts.push(...newContacts);
                 this.updateContactsUI();
                 showToast(`${newContacts.length} contatos importados.`, 'success');
@@ -490,6 +494,11 @@
                     type: div.querySelector('.variation-content').tagName === 'TEXTAREA' ? 'text' : 'image',
                     content: div.querySelector('.variation-content').value || div.querySelector('.variation-content').dataset.content
                 }));
+                
+                this.tempContacts = this.tempContacts
+                    .map(c => ({...c, number: normalizeBrazilianNumber(c.number)}))
+                    .filter(c => c.number);
+
                 const campaignData = {
                     id: this.currentCampaign?.id || Date.now(),
                     name: document.getElementById('modal-campaign-name').value || 'Campanha Sem Nome',
@@ -696,13 +705,18 @@
                     const response = await fetch(`${BASE_URL}/${chipId}/grupo/${groupId}/membros`);
                      if(!response.ok) throw new Error('Falha ao buscar membros');
                     const data = await response.json();
-                    this.loadedMembers = data.membros;
-                    this.membersTableTitle.textContent = `Membros do Grupo (${data.quantidade})`;
+                    
+                    this.loadedMembers = data.membros.map(m => ({
+                        ...m,
+                        id: normalizeBrazilianNumber(m.id)
+                    })).filter(m => m.id);
+
+                    this.membersTableTitle.textContent = `Membros do Grupo (${this.loadedMembers.length})`;
                     this.membersTableBody.innerHTML = '';
-                    data.membros.forEach(m => {
+                    this.loadedMembers.forEach(m => {
                         this.membersTableBody.innerHTML += `
                             <tr class="border-b border-border">
-                                <td class="p-2">${m.id.split('@')[0]}</td>
+                                <td class="p-2">${m.id}</td>
                                 <td class="p-2">${m.admin ? '<span class="text-green-400">Sim</span>' : 'Não'}</td>
                             </tr>
                         `;
@@ -724,7 +738,7 @@
             export(format) {
                 if (this.loadedMembers.length === 0) return;
                 const data = this.loadedMembers.map(m => ({
-                    numero: m.id.split('@')[0],
+                    numero: m.id,
                     admin: m.admin ? 'sim' : 'nao'
                 }));
                 const worksheet = XLSX.utils.json_to_sheet(data);
@@ -753,11 +767,13 @@
         const ThemeManager = {
             init() {
                 this.switch = document.getElementById('theme-switch');
-                this.switch.addEventListener('change', this.toggleTheme.bind(this));
-                if (localStorage.getItem('theme') === 'light') {
-                    this.switch.checked = true;
-                    document.documentElement.classList.remove('dark');
-                    document.documentElement.classList.add('light');
+                if (this.switch) {
+                    this.switch.addEventListener('change', this.toggleTheme.bind(this));
+                    if (localStorage.getItem('theme') === 'light') {
+                        this.switch.checked = true;
+                        document.documentElement.classList.remove('dark');
+                        document.documentElement.classList.add('light');
+                    }
                 }
             },
             toggleTheme() {
